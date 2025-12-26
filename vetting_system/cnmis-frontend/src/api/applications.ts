@@ -1,0 +1,119 @@
+import api from './index'
+import type { AxiosResponse } from 'axios'
+
+export interface Application {
+  id: number
+  application_number: string
+  full_name: string
+  national_id: string
+  current_name: string
+  requested_name: string
+  reason: string
+  status: {
+    id: number
+    name: string
+    code: string
+  }
+  created_by: {
+    id: number
+    username: string
+    email: string
+  }
+  assigned_police_officer?: {
+    id: number
+    username: string
+    email: string
+  }
+  assigned_nis_officer?: {
+    id: number
+    username: string
+    email: string
+  }
+  assigned_opc_approver?: {
+    id: number
+    username: string
+    email: string
+  }
+  submitted_at?: string
+  police_vetting_completed_at?: string
+  nis_vetting_completed_at?: string
+  decided_at?: string
+  approver_send_back_reason?: string
+  approver_send_back_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ApplicationListParams {
+  page?: number
+  per_page?: number
+  search?: string
+  status_id?: number
+  created_by?: number
+  assigned_police_officer_id?: number
+  assigned_nis_officer_id?: number
+  assigned_opc_approver_id?: number
+  date_from?: string
+  date_to?: string
+}
+
+export interface CreateApplicationRequest {
+  full_name: string
+  national_id: string
+  current_name: string
+  requested_name: string
+  reason: string
+}
+
+export interface UpdateApplicationRequest extends Partial<CreateApplicationRequest> {}
+
+export interface AssignPoliceRequest {
+  police_officer_id: number
+}
+
+export interface AssignNisRequest {
+  nis_officer_id: number
+}
+
+export const applicationsApi = {
+  list: (params?: ApplicationListParams): Promise<AxiosResponse> =>
+    api.get('/applications', { params }),
+  
+  create: (data: CreateApplicationRequest): Promise<AxiosResponse> =>
+    api.post('/applications', data),
+  
+  createWithFiles: (formData: FormData): Promise<AxiosResponse> =>
+    api.post('/applications', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }),
+  
+  get: (id: number): Promise<AxiosResponse> =>
+    api.get(`/applications/${id}`),
+  
+  update: (id: number, data: UpdateApplicationRequest): Promise<AxiosResponse> =>
+    api.put(`/applications/${id}`, data),
+  
+  delete: (id: number): Promise<AxiosResponse> =>
+    api.delete(`/applications/${id}`),
+  
+  assignPolice: (id: number, data: AssignPoliceRequest): Promise<AxiosResponse> =>
+    api.post(`/applications/${id}/assign-police`, data),
+  
+  assignNis: (id: number, data: AssignNisRequest): Promise<AxiosResponse> =>
+    api.post(`/applications/${id}/assign-nis`, data),
+
+  forwardToApproval: (id: number): Promise<AxiosResponse> =>
+    api.post(`/applications/${id}/forward-to-approval`),
+
+  sendBackToAdmin: (id: number, reason: string): Promise<AxiosResponse> =>
+    api.post(`/applications/${id}/send-back-to-admin`, { reason }),
+
+  handleApproverSendBack: (id: number, action: 'send_to_police' | 'send_to_nis' | 'allow_editing', reason?: string): Promise<AxiosResponse> =>
+    api.post(`/applications/${id}/handle-approver-send-back`, { action, reason }),
+  
+  statusHistory: (id: number): Promise<AxiosResponse> =>
+    api.get(`/applications/${id}/status`)
+}
+

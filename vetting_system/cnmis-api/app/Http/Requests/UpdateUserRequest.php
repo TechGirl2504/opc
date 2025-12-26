@@ -1,0 +1,122 @@
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use App\Models\User;
+
+class UpdateUserRequest extends FormRequest
+{
+    /**
+     * Determine if the user is authorized to make this request.
+     */
+    public function authorize(): bool
+    {
+        return $this->user()->hasRole('admin');
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     */
+    public function rules(): array
+    {
+        $userId = $this->route('id');
+        
+        return [
+            'username' => [
+                'sometimes',
+                'required',
+                'string',
+                'min:3',
+                'max:50',
+                'regex:/^[a-zA-Z0-9_]+$/',
+                Rule::unique('users', 'username')->ignore($userId),
+            ],
+            'email' => [
+                'nullable',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($userId),
+            ],
+            'password' => [
+                'sometimes',
+                'string',
+                'min:8',
+                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/',
+            ],
+            'role' => [
+                'sometimes',
+                'required',
+                'string',
+                Rule::exists('roles', 'name'),
+            ],
+            'institution_id' => [
+                'sometimes',
+                'required',
+                'integer',
+                'exists:institutions,id',
+            ],
+            'is_active' => 'sometimes|boolean',
+        ];
+    }
+
+    /**
+     * Configure the validator instance.
+     */
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            $role = $this->input('role');
+            $institutionId = $this->input('institution_id');
+            $userId = $this->route('id');
+
+            if ($role || $institutionId) {
+                $user = User::find($userId);
+                if (!$user) {
+                    return;
+                }
+
+                $finalRole = $role ?? $user->roles->first()?->name;
+                $finalInstitutionId = $institutionId ?? $user->institution_id;
+
+                if ($finalRole && $finalInstitutionId) {
+                    $institution = \App\Models\Institution::find($finalInstitutionId);
+                    
+                    if ($institution) {
+                        $validRoles = $this->getValidRolesForInstitution($institution->code);
+                        if (!in_array($finalRole, $validRoles)) {
+                            $validator->errors()->add('role', "Role '{$finalRole}' is not valid for institution '{$institution->name}'");
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Get valid roles for an institution
+     */
+    private function getValidRolesForInstitution(string $institutionCode): array
+    {
+        return match($institutionCode) {
+            'OPC' => ['admin', 'opc_data_entry', 'opc_approver'],
+            'POLICE' => ['police_officer'],
+            'NIS' => ['nis_officer'],
+            default => [],
+        };
+    }
+
+    /**
+     * Get custom messages for validator errors.
+     */
+    public function messages(): array
+    {
+        return [
+            'username.regex' => 'Username must contain only alphanumeric characters and underscores.',
+            'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, and one number.',
+            'role.exists' => 'Selected role does not exist.',
+            'institution_id.exists' => 'Selected institution does not exist.',
+        ];
+    }
+}

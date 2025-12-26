@@ -1,0 +1,160 @@
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const routes: RouteRecordRaw[] = [
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('@/views/auth/Login.vue'),
+    meta: { layout: 'auth', requiresGuest: true }
+  },
+  {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('@/views/auth/ForgotPassword.vue'),
+    meta: { layout: 'auth', requiresGuest: true }
+  },
+  {
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: () => import('@/views/auth/ResetPassword.vue'),
+    meta: { layout: 'auth', requiresGuest: true }
+  },
+  {
+    path: '/',
+    redirect: '/dashboard'
+  },
+  {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: () => import('@/views/Dashboard.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/applications',
+    name: 'Applications',
+    component: () => import('@/views/applications/List.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/applications/create',
+    name: 'CreateApplication',
+    component: () => import('@/views/applications/Create.vue'),
+    meta: { 
+      requiresAuth: true,
+      roles: ['admin', 'opc_data_entry']
+    }
+  },
+  {
+    path: '/applications/:id/edit',
+    name: 'EditApplication',
+    component: () => import('@/views/applications/Create.vue'),
+    meta: { 
+      requiresAuth: true,
+      roles: ['admin', 'opc_data_entry']
+    }
+  },
+  {
+    path: '/applications/:id',
+    name: 'ApplicationDetail',
+    component: () => import('@/views/applications/Show.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/vetting/police',
+    name: 'PoliceVettingList',
+    component: () => import('@/views/vetting/PoliceVettingList.vue'),
+    meta: { 
+      requiresAuth: true,
+      roles: ['police_officer']
+    }
+  },
+  {
+    path: '/applications/:id/vetting/police',
+    name: 'PoliceVetting',
+    component: () => import('@/views/vetting/PoliceVetting.vue'),
+    meta: { 
+      requiresAuth: true,
+      roles: ['police_officer']
+    }
+  },
+  {
+    path: '/vetting/nis',
+    name: 'NisVettingList',
+    component: () => import('@/views/vetting/NisVettingList.vue'),
+    meta: { 
+      requiresAuth: true,
+      roles: ['nis_officer']
+    }
+  },
+  {
+    path: '/applications/:id/vetting/nis',
+    name: 'NisVetting',
+    component: () => import('@/views/vetting/NisVetting.vue'),
+    meta: { 
+      requiresAuth: true,
+      roles: ['nis_officer']
+    }
+  },
+  {
+    path: '/reports',
+    name: 'Reports',
+    component: () => import('@/views/reports/Index.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin',
+    name: 'Admin',
+    component: () => import('@/views/admin/Index.vue'),
+    meta: { 
+      requiresAuth: true,
+      roles: ['admin']
+    }
+  },
+  {
+    path: '/unauthorized',
+    name: 'Unauthorized',
+    component: () => import('@/views/Unauthorized.vue')
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('@/views/NotFound.vue')
+  }
+]
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes
+})
+
+// Route guards
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore()
+  
+  // Public routes
+  const publicRoutes = ['/login', '/forgot-password', '/reset-password']
+  const isPublicRoute = publicRoutes.includes(to.path)
+
+  // Check authentication
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    next('/login')
+    return
+  }
+
+  // Redirect authenticated users away from auth pages
+  if (to.meta.requiresGuest && authStore.isAuthenticated) {
+    next('/dashboard')
+    return
+  }
+
+  // Check role-based access
+  if (to.meta.roles && !authStore.hasAnyRole(to.meta.roles as string[])) {
+    next('/unauthorized')
+    return
+  }
+
+  next()
+})
+
+export default router
