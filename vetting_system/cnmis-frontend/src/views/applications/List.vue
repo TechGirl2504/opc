@@ -228,14 +228,14 @@ function handlePerPageChange(perPage: number) {
 }
 
 function canEditItem(item: Application): boolean {
-  // Admin can edit all
-  if (authStore.isAdmin) return true
-  
-  // OPC data entry can edit applications they created
-  if (authStore.isOpcDataEntry) {
+  // Permission-based UI gating (backend still enforces actual rules)
+  if (authStore.hasPermission('edit applications')) return true
+
+  // Allow creators with create permission to edit their own (matches typical data-entry workflow)
+  if (authStore.hasPermission('create applications')) {
     return item.created_by?.id === authStore.user?.id
   }
-  
+
   return false
 }
 

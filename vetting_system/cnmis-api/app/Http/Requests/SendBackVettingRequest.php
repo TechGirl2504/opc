@@ -13,8 +13,7 @@ class SendBackVettingRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Only OPC approvers can send back vetting
-        if (!$this->user()->hasRole('opc_approver') && !$this->user()->hasRole('admin')) {
+        if (!($this->user()?->hasPermissionTo('send back vetting') ?? false)) {
             return false;
         }
 

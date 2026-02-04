@@ -21,12 +21,48 @@ class DocumentService
         $this->auditService = $auditService;
         $this->notificationService = $notificationService;
     }
+
+    /**
+     * Permission-based application access check used for document actions.
+     *
+     * - Users with "view all applications" can access any application's documents
+     * - Otherwise, only access documents for applications they created or are assigned to
+     */
+    public function assertCanAccessApplication(Application $application, User $user): void
+    {
+        if ($user->hasPermissionTo('view all applications')) {
+            return;
+        }
+
+        $isCreator = ($application->created_by !== null) && ((int) $application->created_by === (int) $user->id);
+        $isAssignedPolice = ($application->assigned_police_officer_id !== null) && ((int) $application->assigned_police_officer_id === (int) $user->id);
+        $isAssignedNis = ($application->assigned_nis_officer_id !== null) && ((int) $application->assigned_nis_officer_id === (int) $user->id);
+        $isAssignedApprover = ($application->assigned_opc_approver_id !== null) && ((int) $application->assigned_opc_approver_id === (int) $user->id);
+
+        if ($isCreator || $isAssignedPolice || $isAssignedNis || $isAssignedApprover) {
+            return;
+        }
+
+        throw new \Exception('You do not have permission to access documents for this application');
+    }
+
+    public function assertCanAccessDocument(Document $document, User $user): void
+    {
+        $application = $document->application;
+        if (!$application) {
+            throw new \Exception('Application not found for this document');
+        }
+
+        $this->assertCanAccessApplication($application, $user);
+    }
     /**
      * Upload a document for an application
      */
     public function uploadDocument(Application $application, UploadedFile $file, int $documentTypeId, User $user, ?string $description = null): Document
     {
         try {
+            $this->assertCanAccessApplication($application, $user);
+
             $documentType = DocumentType::findOrFail($documentTypeId);
 
             // Validate file size
@@ -84,25 +120,7 @@ class DocumentService
      */
     public function getDownloadPath(Document $document, User $user): string
     {
-        // Verify user has access to the application
-        $application = $document->application;
-        
-        // Check access based on role
-        $hasAccess = false;
-        
-        if ($user->hasRole('admin')) {
-            $hasAccess = true;
-        } elseif ($user->hasRole('opc_data_entry') || $user->hasRole('opc_approver')) {
-            $hasAccess = true; // OPC users can access all applications
-        } elseif ($user->hasRole('police_officer')) {
-            $hasAccess = $application->assigned_police_officer_id === $user->id;
-        } elseif ($user->hasRole('nis_officer')) {
-            $hasAccess = $application->assigned_nis_officer_id === $user->id;
-        }
-
-        if (!$hasAccess) {
-            throw new \Exception('You do not have permission to access this document');
-        }
+        $this->assertCanAccessDocument($document, $user);
 
         // Log download
         $this->auditService->log($user, 'document_downloaded', Document::class, $document->id);
@@ -124,10 +142,7 @@ class DocumentService
     public function deleteDocument(Document $document, User $user): bool
     {
         try {
-            // Verify user has permission
-            if (!$user->hasRole('admin') && $document->uploaded_by !== $user->id) {
-                throw new \Exception('You do not have permission to delete this document');
-            }
+            $this->assertCanAccessDocument($document, $user);
 
             // Delete file from storage
             if (Storage::disk('documents')->exists($document->file_path)) {

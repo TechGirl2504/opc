@@ -26,8 +26,18 @@ class CheckRole
             ], 401);
         }
 
+        // Support both middleware syntaxes:
+        // - role:admin,opc_data_entry  (Laravel passes as multiple params)
+        // - role:admin|opc_data_entry  (sometimes used with Spatie examples)
+        $normalizedRoles = collect($roles)
+            ->flatMap(fn ($r) => preg_split('/[|]/', $r) ?: [])
+            ->map(fn ($r) => trim($r))
+            ->filter()
+            ->values()
+            ->all();
+
         // Use Spatie Permission to check roles
-        if (!$request->user()->hasAnyRole($roles)) {
+        if (!$request->user()->hasAnyRole($normalizedRoles)) {
             return response()->json([
                 'success' => false,
                 'error' => [

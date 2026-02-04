@@ -47,6 +47,7 @@ export interface DocumentType {
 export interface Role {
   id: number
   name: string
+  display_name?: string | null
   guard_name: string
   permissions?: Permission[]
   created_at: string
@@ -56,6 +57,7 @@ export interface Role {
 export interface Permission {
   id: number
   name: string
+  display_name?: string | null
   guard_name: string
 }
 

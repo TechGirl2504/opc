@@ -40,15 +40,17 @@ class ReportController extends Controller
                 $query->whereDate('created_at', '<=', $dateTo);
             }
 
-            // Filter by user's access based on role
-            if ($user->hasRole('police_officer')) {
-                $query->where('assigned_police_officer_id', $user->id);
-            } elseif ($user->hasRole('nis_officer')) {
-                $query->where('assigned_nis_officer_id', $user->id);
-            } elseif ($user->hasRole('opc_data_entry')) {
-                $query->where('created_by', $user->id);
+            // Permission-based scoping:
+            // - Users with "view all applications" can see all
+            // - Otherwise scope to records they created or are assigned to
+            if (!$user->hasPermissionTo('view all applications')) {
+                $query->where(function ($q) use ($user) {
+                    $q->where('created_by', $user->id)
+                      ->orWhere('assigned_police_officer_id', $user->id)
+                      ->orWhere('assigned_nis_officer_id', $user->id)
+                      ->orWhere('assigned_opc_approver_id', $user->id);
+                });
             }
-            // Admin and OPC approver can see all
 
             $total = $query->count();
             $pending = (clone $query)->whereHas('status', function($q) {
@@ -65,13 +67,14 @@ class ReportController extends Controller
             $statusBreakdownQuery = Application::select('application_statuses.name', 'application_statuses.code', DB::raw('count(*) as count'))
                 ->join('application_statuses', 'applications.status_id', '=', 'application_statuses.id');
             
-            // Apply same role-based filtering to status breakdown
-            if ($user->hasRole('police_officer')) {
-                $statusBreakdownQuery->where('applications.assigned_police_officer_id', $user->id);
-            } elseif ($user->hasRole('nis_officer')) {
-                $statusBreakdownQuery->where('applications.assigned_nis_officer_id', $user->id);
-            } elseif ($user->hasRole('opc_data_entry')) {
-                $statusBreakdownQuery->where('applications.created_by', $user->id);
+            // Apply same permission-based scoping
+            if (!$user->hasPermissionTo('view all applications')) {
+                $statusBreakdownQuery->where(function ($q) use ($user) {
+                    $q->where('applications.created_by', $user->id)
+                      ->orWhere('applications.assigned_police_officer_id', $user->id)
+                      ->orWhere('applications.assigned_nis_officer_id', $user->id)
+                      ->orWhere('applications.assigned_opc_approver_id', $user->id);
+                });
             }
             
             // Apply date filters if provided
@@ -140,15 +143,15 @@ class ReportController extends Controller
             
             $query = Application::with(['status', 'createdBy', 'createdBy.institution']);
 
-            // Apply role-based filtering
-            if ($user->hasRole('police_officer')) {
-                $query->where('assigned_police_officer_id', $user->id);
-            } elseif ($user->hasRole('nis_officer')) {
-                $query->where('assigned_nis_officer_id', $user->id);
-            } elseif ($user->hasRole('opc_data_entry')) {
-                $query->where('created_by', $user->id);
+            // Permission-based scoping (same logic as dashboard)
+            if (!$user->hasPermissionTo('view all applications')) {
+                $query->where(function ($q) use ($user) {
+                    $q->where('created_by', $user->id)
+                        ->orWhere('assigned_police_officer_id', $user->id)
+                        ->orWhere('assigned_nis_officer_id', $user->id)
+                        ->orWhere('assigned_opc_approver_id', $user->id);
+                });
             }
-            // Admin and OPC approver can see all
 
             // Apply filters
             if (isset($filters['status_id']) && $filters['status_id']) {
@@ -223,25 +226,15 @@ class ReportController extends Controller
 
             $query = VettingRecord::with(['vettingType', 'status', 'application', 'conductedBy']);
 
-            // Apply role-based filtering
-            if ($user->hasRole('police_officer')) {
-                $query->whereHas('vettingType', function($q) {
-                    $q->where('code', 'police');
-                })->whereHas('application', function($q) use ($user) {
-                    $q->where('assigned_police_officer_id', $user->id);
-                });
-            } elseif ($user->hasRole('nis_officer')) {
-                $query->whereHas('vettingType', function($q) {
-                    $q->where('code', 'nis');
-                })->whereHas('application', function($q) use ($user) {
-                    $q->where('assigned_nis_officer_id', $user->id);
-                });
-            } elseif ($user->hasRole('opc_data_entry')) {
-                $query->whereHas('application', function($q) use ($user) {
-                    $q->where('created_by', $user->id);
+            // Permission-based scoping
+            if (!$user->hasPermissionTo('view all applications')) {
+                $query->whereHas('application', function ($q) use ($user) {
+                    $q->where('created_by', $user->id)
+                        ->orWhere('assigned_police_officer_id', $user->id)
+                        ->orWhere('assigned_nis_officer_id', $user->id)
+                        ->orWhere('assigned_opc_approver_id', $user->id);
                 });
             }
-            // Admin and OPC approver can see all
 
             // Date filters
             if ($dateFrom) {

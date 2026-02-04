@@ -15,6 +15,10 @@
         :key="roles.length + roles.map(r => r.permissions?.length || 0).join(',')"
         class="elevation-1"
       >
+        <template #item.display="{ item }">
+          <div class="font-weight-medium">{{ item.display_name || item.name }}</div>
+          <div class="text-caption text-grey">{{ item.name }}</div>
+        </template>
         <template #item.permissions="{ item }">
           <v-chip
             v-for="perm in (item.permissions || []).slice(0, 3)"
@@ -54,8 +58,17 @@
           <v-form ref="formRef" @submit.prevent="handleSubmit">
             <v-text-field
               v-model="form.name"
-              label="Role Name"
+              label="Role Code (internal)"
               :rules="[rules.required]"
+              :disabled="!!editingRole"
+              hint="Use lowercase letters/numbers/underscore (e.g. police_officer). Don’t rename after creation."
+              persistent-hint
+            ></v-text-field>
+            <v-text-field
+              v-model="form.display_name"
+              label="Role Display Name"
+              hint="Human-friendly label (e.g. Police Officer)"
+              persistent-hint
             ></v-text-field>
             <v-select
               v-model="form.permissions"
@@ -102,11 +115,12 @@ const allPermissions = ref<Permission[]>([])
 
 const form = reactive({
   name: '',
+  display_name: '',
   permissions: [] as string[]
 })
 
 const headers = [
-  { title: 'Name', key: 'name' },
+  { title: 'Role', key: 'display' },
   { title: 'Permissions', key: 'permissions' },
   { title: 'Actions', key: 'actions', sortable: false }
 ]
@@ -128,6 +142,7 @@ async function loadRoles() {
         return {
           id: role.id,
           name: role.name,
+          display_name: role.display_name ?? null,
           guard_name: role.guard_name,
           created_at: role.created_at,
           updated_at: role.updated_at,
@@ -203,6 +218,7 @@ function openCreateDialog() {
 function openEditDialog(role: Role) {
   editingRole.value = role
   form.name = role.name
+  form.display_name = (role.display_name ?? '').toString()
   // Create a new array to ensure reactivity
   form.permissions = [...(role.permissions || []).map((p: Permission) => p.name)]
   console.log('Opening edit dialog for role:', role.name)
@@ -212,6 +228,7 @@ function openEditDialog(role: Role) {
 
 function resetForm() {
   form.name = ''
+  form.display_name = ''
   form.permissions = []
 }
 
@@ -236,7 +253,9 @@ async function handleSubmit() {
   try {
     // Prepare data - ensure permissions is an array of strings (names)
     const data: any = {
-      name: form.name.trim()
+      // name is the internal role "code" (slug). Keep stable once created.
+      name: form.name.trim(),
+      display_name: form.display_name?.trim() || null,
     }
     
     // Always include permissions array, even if empty (to clear permissions)
@@ -252,6 +271,8 @@ async function handleSubmit() {
     console.log('Submitting role data:', data)
     
     if (editingRole.value) {
+      // Never attempt to rename role code via UI update; backend will reject it anyway.
+      data.name = editingRole.value.name
       const response = await adminApi.updateRole(editingRole.value.id, data)
       console.log('Update response:', response.data)
       if (response.data.success) {

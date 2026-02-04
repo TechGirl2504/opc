@@ -29,6 +29,11 @@ class DocumentController extends Controller
     {
         try {
             $application = Application::findOrFail($id);
+            // Permission is handled by route middleware; enforce application-level access here
+            $user = request()->user();
+            if ($user) {
+                $this->documentService->assertCanAccessApplication($application, $user);
+            }
             $documents = Document::where('application_id', $application->id)
                 ->with(['documentType', 'uploadedBy'])
                 ->orderBy('created_at', 'desc')
@@ -124,6 +129,11 @@ class DocumentController extends Controller
         try {
             $document = Document::with(['documentType', 'uploadedBy', 'application'])
                 ->findOrFail($id);
+            // Permission is handled by route middleware; enforce application-level access here
+            $user = request()->user();
+            if ($user) {
+                $this->documentService->assertCanAccessDocument($document, $user);
+            }
 
             return response()->json([
                 'success' => true,
@@ -255,45 +265,8 @@ public function download(string $id): StreamedResponse|JsonResponse
                 ], 401);
             }
 
-            // Check access permissions
-            $application = $document->application;
-
-            if (!$application) {
-                return response()->json([
-                    'success' => false,
-                    'error' => [
-                        'code' => 'APPLICATION_NOT_FOUND',
-                        'message' => 'Application not found for this document',
-                    ],
-                    'meta' => [
-                        'timestamp' => now()->toIso8601String(),
-                    ],
-                ], 404);
-            }
-
-            $hasAccess = false;
-            if ($user->hasRole('admin')) {
-                $hasAccess = true;
-            } elseif ($user->hasRole('opc_data_entry') || $user->hasRole('opc_approver')) {
-                $hasAccess = true; // OPC users can access all applications
-            } elseif ($user->hasRole('police_officer')) {
-                $hasAccess = $application->assigned_police_officer_id !== null && $application->assigned_police_officer_id === $user->id;
-            } elseif ($user->hasRole('nis_officer')) {
-                $hasAccess = $application->assigned_nis_officer_id !== null && $application->assigned_nis_officer_id === $user->id;
-            }
-
-            if (!$hasAccess) {
-                return response()->json([
-                    'success' => false,
-                    'error' => [
-                        'code' => 'ACCESS_DENIED',
-                        'message' => 'You do not have permission to access this document',
-                    ],
-                    'meta' => [
-                        'timestamp' => now()->toIso8601String(),
-                    ],
-                ], 403);
-            }
+            // Permission check handled by route middleware; application-level access enforced via service
+            $this->documentService->assertCanAccessDocument($document, $user);
 
             // Check if file exists
             if (!Storage::disk('documents')->exists($document->file_path)) {

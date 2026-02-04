@@ -21,8 +21,8 @@ class StoreDocumentRequest extends FormRequest
             return false;
         }
 
-        // Check if user has permission to upload documents
-        return $this->user()->hasAnyRole(['admin', 'opc_data_entry', 'police_officer', 'nis_officer', 'opc_approver']);
+        // Permission check is enforced on the route; keep request authorization permission-based too.
+        return $this->user()?->hasPermissionTo('upload documents') ?? false;
     }
 
     /**
