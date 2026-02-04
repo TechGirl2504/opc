@@ -20,6 +20,18 @@ return new class extends Migration
         throw_if(empty($tableNames), Exception::class, 'Error: config/permission.php not loaded. Run [php artisan config:clear] and try again.');
         throw_if($teams && empty($columnNames['team_foreign_key'] ?? null), Exception::class, 'Error: team_foreign_key on config/permission.php not loaded. Run [php artisan config:clear] and try again.');
 
+        // Defensive: if the package tables already exist, skip creating them so this migration
+        // can be recorded as "Ran" and deployments can continue.
+        if (
+            Schema::hasTable($tableNames['permissions'])
+            && Schema::hasTable($tableNames['roles'])
+            && Schema::hasTable($tableNames['model_has_permissions'])
+            && Schema::hasTable($tableNames['model_has_roles'])
+            && Schema::hasTable($tableNames['role_has_permissions'])
+        ) {
+            return;
+        }
+
         Schema::create($tableNames['permissions'], static function (Blueprint $table) {
             // $table->engine('InnoDB');
             $table->bigIncrements('id'); // permission id

@@ -11,10 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('documents')) {
+            return;
+        }
+
         Schema::create('documents', function (Blueprint $table) {
             $table->id();
             $table->foreignId('application_id')->constrained('applications')->onDelete('cascade');
-            $table->foreignId('document_type_id')->constrained('document_types')->onDelete('restrict');
+            // `document_types` is created in a later migration; avoid FK ordering issues.
+            $table->unsignedBigInteger('document_type_id');
             $table->string('file_name', 255);
             $table->string('file_path', 500);
             $table->bigInteger('file_size'); // in bytes

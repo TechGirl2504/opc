@@ -11,11 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Defensive: some environments have tables created manually/out-of-band.
+        // If the table already exists, treat this migration as a no-op so Laravel
+        // can record it as "Ran" and continue.
+        if (Schema::hasTable('decisions')) {
+            return;
+        }
+
         Schema::create('decisions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('application_id')->constrained('applications')->onDelete('cascade');
-            $table->foreignId('decision_type_id')->constrained('decision_types')->onDelete('restrict');
-            $table->foreignId('decision_value_id')->constrained('decision_values')->onDelete('restrict');
+            // `decision_types` / `decision_values` are created in later migrations; avoid FK ordering issues.
+            $table->unsignedBigInteger('decision_type_id');
+            $table->unsignedBigInteger('decision_value_id');
             $table->foreignId('decided_by')->constrained('users')->onDelete('restrict');
             $table->text('denial_reason')->nullable();
             $table->text('conditions')->nullable();
@@ -25,6 +33,7 @@ return new class extends Migration
             // Indexes
             $table->index('application_id');
             $table->index('decision_type_id');
+            $table->index('decision_value_id');
         });
     }
 
