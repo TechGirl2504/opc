@@ -83,28 +83,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Build backend image
-        uses: docker/build-push-action@v6
+        run: docker build -t local/cnmis-backend:ci -f docker/backend.Dockerfile .
+
+      - name: Trivy scan (backend image)
+        uses: aquasecurity/trivy-action@0.24.0
         with:
-          context: .
-          file: docker/backend.Dockerfile
-          platforms: linux/amd64
-          push: false
-          tags: local/cnmis-backend:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          image-ref: local/cnmis-backend:ci
+          format: table
+          exit-code: "1"
+          severity: "HIGH,CRITICAL"
+          ignore-unfixed: true
+          scanners: vuln
 
       - name: Build frontend image
-        uses: docker/build-push-action@v6
+        run: docker build -t local/cnmis-frontend:ci -f docker/frontend.Dockerfile .
+
+      - name: Trivy scan (frontend image)
+        uses: aquasecurity/trivy-action@0.24.0
         with:
-          context: .
-          file: docker/frontend.Dockerfile
-          platforms: linux/amd64
-          push: false
-          tags: local/cnmis-frontend:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          image-ref: local/cnmis-frontend:ci
+          format: table
+          exit-code: "1"
+          severity: "HIGH,CRITICAL"
+          ignore-unfixed: true
+          scanners: vuln
 
