@@ -79,4 +79,8 @@ if ('serviceWorker' in navigator) {
   })
 }
 
-app.mount('#app')
+// Wait until the initial route is fully resolved (including `meta`) before mounting.
+// This avoids a brief "wrong layout" flash on hard refresh (e.g. dashboard chrome on /login).
+router.isReady().then(() => {
+  app.mount('#app')
+})
