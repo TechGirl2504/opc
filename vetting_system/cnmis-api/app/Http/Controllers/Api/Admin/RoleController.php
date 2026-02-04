@@ -10,6 +10,18 @@ use Illuminate\Validation\Rule;
 
 class RoleController extends Controller
 {
+    /**
+     * Role "name" is treated as an internal immutable code (used by middleware/hasRole()).
+     * Use display_name for human-friendly labels.
+     */
+    private const PROTECTED_ROLE_CODES = [
+        'admin',
+        'opc_data_entry',
+        'opc_approver',
+        'police_officer',
+        'nis_officer',
+    ];
+
     public function index()
     {
         // Get roles with web guard
@@ -24,9 +36,20 @@ class RoleController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:roles,name',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                // keep as a stable slug/code
+                'regex:/^[a-z0-9_]+$/',
+                Rule::unique('roles')->where(fn ($q) => $q->where('guard_name', 'web')),
+            ],
+            'display_name' => 'nullable|string|max:255',
             'permissions' => 'nullable|array',
-            'permissions.*' => 'exists:permissions,name',
+            'permissions.*' => [
+                'string',
+                Rule::exists('permissions', 'name')->where(fn ($q) => $q->where('guard_name', 'web')),
+            ],
         ], [
             'permissions.*.exists' => 'The selected permission does not exist.',
         ]);
@@ -50,7 +73,11 @@ class RoleController extends Controller
         }
 
         // Create role with web guard
-        $role = Role::create(['name' => $validated['name'], 'guard_name' => 'web']);
+        $role = Role::create([
+            'name' => $validated['name'],
+            'display_name' => $validated['display_name'] ?? null,
+            'guard_name' => 'web',
+        ]);
         
         if (isset($validated['permissions']) && !empty($validated['permissions'])) {
             // Filter out any invalid permissions - ensure we get permissions with web guard
@@ -87,9 +114,14 @@ class RoleController extends Controller
         $role = Role::where('guard_name', 'web')->findOrFail($id);
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', Rule::unique('roles')->ignore($role->id)],
+            // Role code should not be renamed once created (prevents breaking middleware checks)
+            'name' => ['sometimes', 'string', 'max:255'],
+            'display_name' => 'nullable|string|max:255',
             'permissions' => 'nullable|array',
-            'permissions.*' => 'exists:permissions,name',
+            'permissions.*' => [
+                'string',
+                Rule::exists('permissions', 'name')->where(fn ($q) => $q->where('guard_name', 'web')),
+            ],
         ], [
             'permissions.*.exists' => 'The selected permission does not exist.',
         ]);
@@ -112,7 +144,22 @@ class RoleController extends Controller
             }
         }
 
-        $role->update(['name' => $validated['name']]);
+        // Prevent renaming role code (especially for system roles)
+        if (array_key_exists('name', $validated) && $validated['name'] !== $role->name) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'message' => 'Role code cannot be changed. Use display name for labeling.',
+                ],
+            ], 422);
+        }
+
+        // Allow updating display_name
+        if (array_key_exists('display_name', $validated)) {
+            $role->update([
+                'display_name' => $validated['display_name'],
+            ]);
+        }
         
         if (isset($validated['permissions'])) {
             // Filter out any invalid permissions - ensure we get permissions with web guard
@@ -138,7 +185,16 @@ class RoleController extends Controller
 
     public function destroy($id)
     {
-        $role = Role::findOrFail($id);
+        $role = Role::where('guard_name', 'web')->findOrFail($id);
+
+        if (in_array($role->name, self::PROTECTED_ROLE_CODES, true)) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'message' => 'This system role cannot be deleted.',
+                ],
+            ], 403);
+        }
         $role->delete();
 
         return response()->json([

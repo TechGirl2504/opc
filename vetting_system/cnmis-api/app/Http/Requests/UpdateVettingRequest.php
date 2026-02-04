@@ -22,12 +22,12 @@ class UpdateVettingRequest extends FormRequest
 
         // Get the vetting record
         $vettingRecord = null;
-        if ($this->user()->hasRole('police_officer')) {
+        if ($this->user()?->hasPermissionTo('conduct police vetting')) {
             if ($application->assigned_police_officer_id !== $this->user()->id) {
                 return false;
             }
             $vettingRecord = $application->policeVetting;
-        } elseif ($this->user()->hasRole('nis_officer')) {
+        } elseif ($this->user()?->hasPermissionTo('conduct nis vetting')) {
             if ($application->assigned_nis_officer_id !== $this->user()->id) {
                 return false;
             }

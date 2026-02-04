@@ -12,7 +12,7 @@ class StoreApplicationRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->hasAnyRole(['admin', 'opc_data_entry']);
+        return $this->user()?->hasPermissionTo('create applications') ?? false;
     }
 
     /**

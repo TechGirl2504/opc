@@ -37,20 +37,29 @@
           :to="{ name: 'Applications' }"
         />
         <v-list-item
-          v-if="authStore.canEditApplications"
+          v-if="authStore.hasPermission('create applications')"
           prepend-icon="mdi-file-document-plus"
           title="Create Application"
           value="create"
           :to="{ name: 'CreateApplication' }"
         />
         <v-list-item
+          v-if="authStore.hasPermission('view reports')"
           prepend-icon="mdi-chart-box"
           title="Reports"
           value="reports"
           :to="{ name: 'Reports' }"
         />
         <v-list-item
-          v-if="authStore.isAdmin"
+          v-if="authStore.hasAnyPermission([
+            'manage users',
+            'manage roles',
+            'manage permissions',
+            'manage institutions',
+            'manage application statuses',
+            'manage vetting types',
+            'manage document types',
+          ])"
           prepend-icon="mdi-cog"
           title="Admin Panel"
           value="admin"

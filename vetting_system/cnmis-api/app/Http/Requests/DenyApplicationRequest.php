@@ -12,7 +12,7 @@ class DenyApplicationRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->hasRole('opc_approver');
+        return $this->user()?->hasPermissionTo('deny applications') ?? false;
     }
 
     /**

@@ -56,7 +56,7 @@
           <v-card-title class="d-flex justify-space-between align-center">
             <span>Supporting Documents</span>
             <v-btn
-              v-if="authStore.canEditApplications"
+              v-if="authStore.hasPermission('upload documents')"
               size="small"
               prepend-icon="mdi-upload"
               @click="showUploadDialog = true"
@@ -81,6 +81,7 @@
                     @click="previewDocument(doc)"
                   />
                   <v-btn
+                    v-if="authStore.hasPermission('download documents')"
                     icon="mdi-download"
                     size="small"
                     variant="text"
@@ -105,16 +106,26 @@
         </v-card>
 
         <!-- Vetting Records -->
-        <v-card v-if="authStore.isAdmin || authStore.isOpcApprover || authStore.isPoliceOfficer || authStore.isNisOfficer" class="mb-4">
+        <v-card
+          v-if="authStore.hasAnyPermission(['view vetting records', 'conduct police vetting', 'conduct nis vetting', 'send back vetting'])"
+          class="mb-4"
+        >
           <v-card-title>Vetting Records</v-card-title>
           <v-card-text>
             <v-tabs v-model="vettingTab">
-              <v-tab v-if="authStore.isAdmin || authStore.isOpcApprover || authStore.isPoliceOfficer" value="police">Police Vetting</v-tab>
-              <v-tab v-if="authStore.isAdmin || authStore.isOpcApprover || authStore.isNisOfficer" value="nis">NIS Vetting</v-tab>
+              <v-tab v-if="authStore.hasAnyPermission(['view vetting records', 'conduct police vetting', 'send back vetting'])" value="police">
+                Police Vetting
+              </v-tab>
+              <v-tab v-if="authStore.hasAnyPermission(['view vetting records', 'conduct nis vetting', 'send back vetting'])" value="nis">
+                NIS Vetting
+              </v-tab>
             </v-tabs>
 
             <v-window v-model="vettingTab">
-              <v-window-item v-if="authStore.isAdmin || authStore.isOpcApprover || authStore.isPoliceOfficer" value="police">
+              <v-window-item
+                v-if="authStore.hasAnyPermission(['view vetting records', 'conduct police vetting', 'send back vetting'])"
+                value="police"
+              >
                 <div>
                   <PoliceVettingCard
                     :application-id="application.id"
@@ -122,7 +133,10 @@
                   />
                 </div>
               </v-window-item>
-              <v-window-item v-if="authStore.isAdmin || authStore.isOpcApprover || authStore.isNisOfficer" value="nis">
+              <v-window-item
+                v-if="authStore.hasAnyPermission(['view vetting records', 'conduct nis vetting', 'send back vetting'])"
+                value="nis"
+              >
                 <div>
                   <NisVettingCard
                     :application-id="application.id"
@@ -906,8 +920,8 @@ const canEditApplication = computed(() => {
     return false
   }
 
-  // Admin can edit if application was sent back by approver (for internal changes)
-  if (authStore.isAdmin && application.value.approver_send_back_reason) {
+  // Permission-based: allow edit if user can edit applications and application was sent back by approver
+  if (authStore.hasPermission('edit applications') && application.value.approver_send_back_reason) {
     return true
   }
 
@@ -916,10 +930,8 @@ const canEditApplication = computed(() => {
     return false
   }
 
-  // Admin can edit unassigned applications
-  if (authStore.isAdmin) return true
-  // OPC data entry can edit unassigned applications they created
-  if (authStore.isOpcDataEntry) {
+  // Users with create/edit permissions can edit unassigned applications they created
+  if (authStore.hasAnyPermission(['create applications', 'edit applications'])) {
     return application.value.created_by?.id === authStore.user?.id
   }
   return false
@@ -927,8 +939,8 @@ const canEditApplication = computed(() => {
 
 const canDoPoliceVetting = computed(() => {
   if (!application.value) return false
-  // Only police officers can do police vetting
-  if (!authStore.isPoliceOfficer) return false
+  // Permission-based
+  if (!authStore.hasPermission('conduct police vetting')) return false
   // Police officer can only vet assigned applications
   if (application.value.assigned_police_officer?.id !== authStore.user?.id) {
     return false
@@ -956,8 +968,8 @@ const canDoPoliceVetting = computed(() => {
 
 const canDoNisVetting = computed(() => {
   if (!application.value) return false
-  // Only NIS officers can do NIS vetting
-  if (!authStore.isNisOfficer) return false
+  // Permission-based
+  if (!authStore.hasPermission('conduct nis vetting')) return false
   // NIS officer can only vet assigned applications
   if (application.value.assigned_nis_officer?.id !== authStore.user?.id) {
     return false
@@ -986,7 +998,7 @@ const canDoNisVetting = computed(() => {
 })
 
 const canSendBackPolice = computed(() => {
-  if (!application.value || !authStore.isAdmin) return false // Only admin can send back to police
+  if (!application.value || !authStore.hasPermission('send back vetting')) return false
   // Can send back only if:
   // 1. Application is in OPC review status
   // 2. Police vetting record exists and is completed
@@ -999,7 +1011,7 @@ const canSendBackPolice = computed(() => {
 })
 
 const canSendBackNis = computed(() => {
-  if (!application.value || !authStore.isAdmin) return false // Only admin can send back to NIS
+  if (!application.value || !authStore.hasPermission('send back vetting')) return false
   // Can send back only if:
   // 1. Application is in OPC review status
   // 2. NIS vetting record exists and is completed
@@ -1012,7 +1024,7 @@ const canSendBackNis = computed(() => {
 })
 
 const canForwardToApproval = computed(() => {
-  if (!application.value || (!authStore.isOpcApprover && !authStore.isAdmin)) return false
+  if (!application.value || !authStore.hasPermission('approve applications')) return false
   // Can forward if application is in OPC review and both vetting are completed
   const status = application.value.status?.code
   if (status !== 'opc_review') return false
@@ -1026,8 +1038,7 @@ const canForwardToApproval = computed(() => {
 
 const canApprove = computed(() => {
   if (!application.value) return false
-  // Only OPC approver can approve
-  if (!authStore.isOpcApprover) return false
+  if (!authStore.hasPermission('approve applications')) return false
   // Can approve only when application is in pending_approval status
   const status = application.value.status?.code
   return status === 'pending_approval'
@@ -1035,16 +1046,14 @@ const canApprove = computed(() => {
 
 const canDeny = computed(() => {
   if (!application.value) return false
-  // Only OPC approver can deny
-  if (!authStore.isOpcApprover) return false
+  if (!authStore.hasPermission('deny applications')) return false
   const status = application.value.status?.code
   return status !== 'approved' && status !== 'denied'
 })
 
 const canSendBackToAdmin = computed(() => {
   if (!application.value) return false
-  // Only OPC approver can send back to admin
-  if (!authStore.isOpcApprover) return false
+  if (!authStore.hasPermission('approve applications')) return false
   // Can send back only when application is in pending_approval status
   const status = application.value.status?.code
   return status === 'pending_approval'
@@ -1052,41 +1061,45 @@ const canSendBackToAdmin = computed(() => {
 
 const canHandleApproverSendBack = computed(() => {
   if (!application.value) return false
-  // Only Admin can handle approver send-back
-  if (!authStore.isAdmin) return false
+  if (!authStore.hasPermission('edit applications')) return false
   // Can handle if application has approver_send_back_reason
   return !!application.value.approver_send_back_reason && application.value.status?.code === 'opc_review'
 })
 
 const canAssignPolice = computed(() => {
   if (!application.value) return false
-  // Only Admin can assign
-  if (!authStore.isAdmin) return false
+  if (!authStore.hasPermission('assign applications')) return false
   // Can assign if status is pending or police_vetting (for reassignment)
-  // But NOT in opc_review status (use send back instead)
+  // In opc_review, allow assignment only if police vetting is NOT completed yet (edge-case / recovery)
   const status = application.value.status?.code
-  if (status === 'opc_review') return false
+  if (status === 'opc_review') {
+    const policeCompleted = policeVettingRecord.value?.status?.code === 'completed'
+    return !policeCompleted
+  }
   return status === 'pending' || status === 'police_vetting'
 })
 
 const canAssignNis = computed(() => {
   if (!application.value) return false
-  // Only Admin can assign
-  if (!authStore.isAdmin) return false
+  if (!authStore.hasPermission('assign applications')) return false
   // Can assign if police vetting is completed or nis_vetting (for reassignment)
-  // But NOT in opc_review status (use send back instead)
+  // In opc_review, allow assignment only if police vetting is completed BUT NIS vetting is NOT completed yet
   const status = application.value.status?.code
-  if (status === 'opc_review') return false
+  if (status === 'opc_review') {
+    const policeCompleted = policeVettingRecord.value?.status?.code === 'completed'
+    const nisCompleted = nisVettingRecord.value?.status?.code === 'completed'
+    return policeCompleted && !nisCompleted
+  }
   return status === 'police_completed' || status === 'nis_vetting'
 })
 
 const canDeleteDocument = (doc: any) => {
-  // Admin can delete any document
-  if (authStore.isAdmin) return true
+  // Permission-based (backend also enforces): users with delete permission can delete
+  if (authStore.hasPermission('delete documents')) return true
   // Users can delete documents they uploaded
   if (doc.uploaded_by?.id === authStore.user?.id) return true
-  // OPC data entry can delete documents from applications they created
-  if (authStore.isOpcDataEntry && application.value?.created_by?.id === authStore.user?.id) {
+  // Allow creators with create permission to delete documents from applications they created
+  if (authStore.hasPermission('create applications') && application.value?.created_by?.id === authStore.user?.id) {
     return true
   }
   return false
@@ -1267,10 +1280,15 @@ async function fetchApplication() {
     const response = await applicationsApi.get(Number(route.params.id))
     if (response.data.success) {
       application.value = response.data.data
-      // Fetch vetting records if OPC approver, admin, or if user is assigned officer
-      if (application.value && (authStore.isOpcApprover || authStore.isAdmin ||
-          (authStore.isPoliceOfficer && application.value.assigned_police_officer?.id === authStore.user?.id) ||
-          (authStore.isNisOfficer && application.value.assigned_nis_officer?.id === authStore.user?.id))) {
+      // Fetch vetting records if user can view vetting records, or if user is assigned officer who can vet
+      if (
+        application.value &&
+        (authStore.hasPermission('view vetting records') ||
+          (authStore.hasPermission('conduct police vetting') &&
+            application.value.assigned_police_officer?.id === authStore.user?.id) ||
+          (authStore.hasPermission('conduct nis vetting') &&
+            application.value.assigned_nis_officer?.id === authStore.user?.id))
+      ) {
         await Promise.all([
           fetchPoliceVetting(),
           fetchNisVetting()

@@ -34,21 +34,14 @@ class ApplicationService
             'vettingRecords',
         ]);
 
-        // Apply role-based filtering if user is provided
-        if ($user) {
-            // Police officers can only see applications assigned to them
-            if ($user->hasRole('police_officer')) {
-                $query->where('assigned_police_officer_id', $user->id);
-            }
-            // NIS officers can only see applications assigned to them
-            elseif ($user->hasRole('nis_officer')) {
-                $query->where('assigned_nis_officer_id', $user->id);
-            }
-            // OPC data entry can only see applications they created
-            elseif ($user->hasRole('opc_data_entry')) {
-                $query->where('created_by', $user->id);
-            }
-            // Admin and OPC approver can see all (no additional filter)
+        // Permission-based scoping if user is provided
+        if ($user && !$user->hasPermissionTo('view all applications')) {
+            $query->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                    ->orWhere('assigned_police_officer_id', $user->id)
+                    ->orWhere('assigned_nis_officer_id', $user->id)
+                    ->orWhere('assigned_opc_approver_id', $user->id);
+            });
         }
 
         // Search by application number, full name, or national ID
@@ -178,9 +171,9 @@ class ApplicationService
         try {
             $policeOfficer = User::findOrFail($policeOfficerId);
 
-            // Verify user is police officer
-            if (!$policeOfficer->hasRole('police_officer')) {
-                throw new \Exception('User must be a police officer');
+            // Verify target user can conduct police vetting
+            if (!$policeOfficer->hasPermissionTo('conduct police vetting')) {
+                throw new \Exception('User must have permission to conduct police vetting');
             }
 
             // Get police_vetting status
@@ -217,9 +210,9 @@ class ApplicationService
         try {
             $nisOfficer = User::findOrFail($nisOfficerId);
 
-            // Verify user is NIS officer
-            if (!$nisOfficer->hasRole('nis_officer')) {
-                throw new \Exception('User must be an NIS officer');
+            // Verify target user can conduct NIS vetting
+            if (!$nisOfficer->hasPermissionTo('conduct nis vetting')) {
+                throw new \Exception('User must have permission to conduct NIS vetting');
             }
 
             // Check if police vetting is completed

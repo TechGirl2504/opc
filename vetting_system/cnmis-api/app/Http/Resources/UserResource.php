@@ -14,6 +14,7 @@ class UserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $requestUser = $request->user();
         return [
             'id' => $this->id,
             'username' => $this->username,
@@ -33,7 +34,12 @@ class UserResource extends JsonResource
                     ];
                 });
             }),
-            'permissions' => $this->when($request->user()?->hasRole('admin'), function () {
+            'permissions' => $this->when(
+                // only include when requester is allowed to manage users/roles, or requesting own user
+                ($requestUser?->hasPermissionTo('manage users') ?? false)
+                    || ($requestUser?->hasPermissionTo('manage roles') ?? false)
+                    || ($requestUser?->id === $this->id),
+                function () {
                 return $this->getAllPermissions()->pluck('name');
             }),
             'profile_picture' => $this->profile_picture,
