@@ -16,8 +16,29 @@
     <link rel="mask-icon" href="/mask-icon.svg" color="#1976d2">
     
     <title>CNMIS - Change of Name Management</title>
+    <style>
+      /* Prevent "dashboard flash" on hard refresh by keeping the SPA hidden
+         until router/auth boot completes (see `src/main.ts`). */
+      html:not([data-app-ready="true"]) #app {
+        display: none;
+      }
+      html:not([data-app-ready="true"]) #boot-splash {
+        display: flex;
+      }
+      #boot-splash {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: #f5f7fb;
+        color: #0f172a;
+        align-items: center;
+        justify-content: center;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      }
+    </style>
   </head>
   <body>
+    <div id="boot-splash">Loading…</div>
     <div id="app"></div>
     <!-- Runtime env (generated in Docker at startup) -->
     <script src="/env.js"></script>
