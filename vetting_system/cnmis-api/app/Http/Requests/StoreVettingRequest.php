@@ -19,13 +19,13 @@ class StoreVettingRequest extends FormRequest
             return false;
         }
 
-        // Police officers can only submit police vetting
-        if ($this->user()->hasRole('police_officer')) {
+        // Police vetting permission
+        if ($this->user()?->hasPermissionTo('conduct police vetting')) {
             return $application->assigned_police_officer_id === $this->user()->id;
         }
 
-        // NIS officers can only submit NIS vetting
-        if ($this->user()->hasRole('nis_officer')) {
+        // NIS vetting permission
+        if ($this->user()?->hasPermissionTo('conduct nis vetting')) {
             return $application->assigned_nis_officer_id === $this->user()->id;
         }
 

@@ -65,40 +65,32 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function hasPermission(permission: string): boolean {
-    if (isAdmin.value) return true // Admin has all permissions
     return userPermissions.value.includes(permission) ?? false
   }
 
   function hasAnyPermission(permissions: string[]): boolean {
-    if (isAdmin.value) return true // Admin has all permissions
     return permissions.some(permission => hasPermission(permission))
   }
 
-  // Role-specific computed properties
-  const isPoliceOfficer = computed(() => hasRole('police_officer'))
-  const isNisOfficer = computed(() => hasRole('nis_officer'))
-  const isOpcDataEntry = computed(() => hasRole('opc_data_entry'))
-  const isOpcApprover = computed(() => hasRole('opc_approver'))
-
-  // Check if user can view all applications or only assigned ones
+  // Permission-based computed properties (recommended)
+  // Note: data scoping is still enforced by backend (role/institution logic where needed),
+  // but page/action visibility should be permission-driven.
   const canViewAllApplications = computed(() => {
-    return isAdmin.value || isOpcDataEntry.value || isOpcApprover.value
+    // OPC roles can see broader sets; keep this as a UI hint.
+    return isAdmin.value || hasAnyRole(['opc_data_entry', 'opc_approver'])
   })
 
-  // Check if user can edit applications
-  const canEditApplications = computed(() => {
-    return isAdmin.value || isOpcDataEntry.value
-  })
+  const canEditApplications = computed(() => hasAnyPermission(['create applications', 'edit applications']))
 
-  // Check if user can delete applications
-  const canDeleteApplications = computed(() => {
-    return isAdmin.value
-  })
+  const canDeleteApplications = computed(() => hasPermission('delete applications'))
 
-  // Check if user can assign officers
-  const canAssignOfficers = computed(() => {
-    return isAdmin.value || isOpcDataEntry.value
-  })
+  const canAssignOfficers = computed(() => hasPermission('assign applications'))
+
+  // These are kept for compatibility with existing UI logic, but should be phased out.
+  const isPoliceOfficer = computed(() => hasPermission('conduct police vetting'))
+  const isNisOfficer = computed(() => hasPermission('conduct nis vetting'))
+  const isOpcDataEntry = computed(() => hasPermission('create applications'))
+  const isOpcApprover = computed(() => hasAnyPermission(['approve applications', 'deny applications']))
 
   return {
     user,

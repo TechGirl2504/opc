@@ -342,7 +342,7 @@ async function loadApplication() {
       application.value = response.data.data
       // Verify user is assigned to this application (only NIS officers can vet)
       const assignedId = application.value?.assigned_nis_officer?.id
-      if (!authStore.isNisOfficer || assignedId !== authStore.user?.id) {
+      if (!authStore.hasPermission('conduct nis vetting') || assignedId !== authStore.user?.id) {
         toast.error('You are not authorized to perform NIS vetting on this application')
         router.push({ name: 'Applications' })
         return

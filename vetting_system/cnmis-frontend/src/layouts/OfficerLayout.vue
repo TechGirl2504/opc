@@ -36,27 +36,28 @@
           :to="{ name: 'Applications' }"
         />
         <v-list-item
-          v-if="authStore.canEditApplications"
+          v-if="authStore.hasPermission('create applications')"
           prepend-icon="mdi-file-document-plus"
           title="Create Application"
           value="create"
           :to="{ name: 'CreateApplication' }"
         />
         <v-list-item
-          v-if="authStore.isPoliceOfficer"
+          v-if="authStore.hasPermission('conduct police vetting')"
           prepend-icon="mdi-shield-check"
           title="Police Vetting"
           value="police"
           :to="{ name: 'PoliceVettingList' }"
         />
         <v-list-item
-          v-if="authStore.isNisOfficer"
+          v-if="authStore.hasPermission('conduct nis vetting')"
           prepend-icon="mdi-shield-account"
           title="NIS Vetting"
           value="nis"
           :to="{ name: 'NisVettingList' }"
         />
         <v-list-item
+          v-if="authStore.hasPermission('view reports')"
           prepend-icon="mdi-chart-box"
           title="Reports"
           value="reports"

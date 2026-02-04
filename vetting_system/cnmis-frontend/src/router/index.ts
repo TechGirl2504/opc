@@ -42,7 +42,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/applications/Create.vue'),
     meta: { 
       requiresAuth: true,
-      roles: ['admin', 'opc_data_entry']
+      permissions: ['create applications']
     }
   },
   {
@@ -51,7 +51,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/applications/Create.vue'),
     meta: { 
       requiresAuth: true,
-      roles: ['admin', 'opc_data_entry']
+      permissions: ['edit applications']
     }
   },
   {
@@ -66,7 +66,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/vetting/PoliceVettingList.vue'),
     meta: { 
       requiresAuth: true,
-      roles: ['police_officer']
+      permissions: ['conduct police vetting']
     }
   },
   {
@@ -75,7 +75,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/vetting/PoliceVetting.vue'),
     meta: { 
       requiresAuth: true,
-      roles: ['police_officer']
+      permissions: ['conduct police vetting']
     }
   },
   {
@@ -84,7 +84,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/vetting/NisVettingList.vue'),
     meta: { 
       requiresAuth: true,
-      roles: ['nis_officer']
+      permissions: ['conduct nis vetting']
     }
   },
   {
@@ -93,14 +93,17 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/vetting/NisVetting.vue'),
     meta: { 
       requiresAuth: true,
-      roles: ['nis_officer']
+      permissions: ['conduct nis vetting']
     }
   },
   {
     path: '/reports',
     name: 'Reports',
     component: () => import('@/views/reports/Index.vue'),
-    meta: { requiresAuth: true }
+    meta: {
+      requiresAuth: true,
+      permissions: ['view reports'],
+    }
   },
   {
     path: '/admin',
@@ -108,7 +111,15 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/admin/Index.vue'),
     meta: { 
       requiresAuth: true,
-      roles: ['admin']
+      permissions: [
+        'manage users',
+        'manage roles',
+        'manage permissions',
+        'manage institutions',
+        'manage application statuses',
+        'manage vetting types',
+        'manage document types',
+      ]
     }
   },
   {
@@ -148,7 +159,13 @@ router.beforeEach((to, from, next) => {
     return
   }
 
-  // Check role-based access
+  // Check permission-based access (recommended)
+  if (to.meta.permissions && !authStore.hasAnyPermission(to.meta.permissions as string[])) {
+    next('/unauthorized')
+    return
+  }
+
+  // Backward compatibility: some routes may still use roles
   if (to.meta.roles && !authStore.hasAnyRole(to.meta.roles as string[])) {
     next('/unauthorized')
     return

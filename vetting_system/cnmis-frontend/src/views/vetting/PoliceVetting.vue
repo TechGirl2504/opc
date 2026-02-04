@@ -353,7 +353,7 @@ async function loadApplication() {
       application.value = response.data.data
       // Verify user is assigned to this application (only police officers can vet)
       const assignedId = application.value?.assigned_police_officer?.id
-      if (!authStore.isPoliceOfficer || assignedId !== authStore.user?.id) {
+      if (!authStore.hasPermission('conduct police vetting') || assignedId !== authStore.user?.id) {
         toast.error('You are not authorized to perform police vetting on this application')
         router.push({ name: 'Applications' })
         return

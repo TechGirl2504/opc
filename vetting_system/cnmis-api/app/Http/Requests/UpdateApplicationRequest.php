@@ -28,15 +28,17 @@ class UpdateApplicationRequest extends FormRequest
             return false;
         }
 
-        // Only allow update if application is in pending status or user is admin
-        if ($this->user()->hasRole('admin')) {
+        // Users with edit permission can update
+        if ($this->user()?->hasPermissionTo('edit applications')) {
             return true;
         }
 
-        // OPC Data Entry can only update pending applications
-        if ($this->user()->hasRole('opc_data_entry')) {
+        // Users with create permission can only update pending applications they created
+        if ($this->user()?->hasPermissionTo('create applications')) {
             $pendingStatus = \App\Models\ApplicationStatus::where('code', 'pending')->first();
-            return $application && $application->status_id === $pendingStatus?->id;
+            return $application
+                && $application->status_id === $pendingStatus?->id
+                && (int) $application->created_by === (int) $this->user()->id;
         }
 
         return false;

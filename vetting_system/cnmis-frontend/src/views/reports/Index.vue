@@ -8,7 +8,7 @@
           <v-tab value="dashboard">Dashboard</v-tab>
           <v-tab value="applications">Applications</v-tab>
           <v-tab value="vetting">Vetting</v-tab>
-          <v-tab value="audit" v-if="isAdmin">Audit Log</v-tab>
+          <v-tab value="audit" v-if="canViewAuditLogs">Audit Log</v-tab>
         </v-tabs>
 
         <v-window v-model="activeTab" @update:model-value="handleTabChange">
@@ -251,7 +251,7 @@
           </v-window-item>
 
           <!-- Audit Tab -->
-          <v-window-item value="audit" v-if="isAdmin">
+          <v-window-item value="audit" v-if="canViewAuditLogs">
             <v-card class="mt-4">
               <v-card-title>Audit Log</v-card-title>
               <v-card-text>
@@ -332,7 +332,7 @@ import { format } from 'date-fns'
 const authStore = useAuthStore()
 const toast = useToast()
 
-const isAdmin = computed(() => authStore.isAdmin)
+const canViewAuditLogs = computed(() => authStore.hasPermission('view audit logs'))
 const activeTab = ref('dashboard')
 const loading = ref(false)
 const exporting = ref(false)
@@ -459,7 +459,7 @@ async function loadVetting() {
 }
 
 async function loadAudit() {
-  if (!isAdmin.value) return
+  if (!canViewAuditLogs.value) return
   loading.value = true
   try {
     const response = await reportsApi.audit(filters)
@@ -519,7 +519,7 @@ function handleTabChange(tab: string) {
     loadApplications()
   } else if (tab === 'vetting') {
     loadVetting()
-  } else if (tab === 'audit' && isAdmin.value) {
+  } else if (tab === 'audit' && canViewAuditLogs.value) {
     loadAudit()
   }
 }
