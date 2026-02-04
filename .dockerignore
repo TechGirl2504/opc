@@ -1,0 +1,28 @@
+.git
+.github
+.DS_Store
+
+# local env / secrets
+**/.env
+**/.env.*
+
+# Node / frontend artifacts
+**/node_modules
+**/dist
+**/dist-ssr
+**/coverage
+
+# PHP / Laravel artifacts
+**/vendor
+**/storage/logs
+**/storage/framework/cache
+**/storage/framework/sessions
+**/storage/framework/views
+**/bootstrap/cache
+
+# IDE
+**/.idea
+**/.vscode
+**/.fleet
+**/.zed
+
