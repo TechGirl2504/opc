@@ -65,14 +65,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { notificationsApi, type Notification } from '@/api/notifications'
 import { format } from 'date-fns'
 
+import { useAuthStore } from '@/stores/auth'
+
 const router = useRouter()
 const toast = useToast()
+const auth = useAuthStore()
 
 const notifications = ref<Notification[]>([])
 const loading = ref(false)
@@ -83,6 +86,20 @@ const unreadCount = computed(() => {
 })
 
 let refreshInterval: number | null = null
+
+function stopRefresh() {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+    refreshInterval = null
+  }
+}
+
+function startRefresh() {
+  stopRefresh()
+  refreshInterval = window.setInterval(() => {
+    loadNotifications()
+  }, 30000)
+}
 
 function formatDate(date: string) {
   return format(new Date(date), 'MMM dd, HH:mm')
@@ -111,6 +128,12 @@ function getNotificationIcon(type?: string) {
 }
 
 async function loadNotifications() {
+  // Notifications endpoints require auth; avoid noisy 401s before login.
+  if (!auth.isAuthenticated) {
+    notifications.value = []
+    return
+  }
+
   loading.value = true
   try {
     const response = await notificationsApi.list()
@@ -118,7 +141,10 @@ async function loadNotifications() {
       notifications.value = response.data.data || []
     }
   } catch (err: any) {
-    console.error('Failed to load notifications:', err)
+    // 401 is expected if token is missing/expired; interceptor handles redirect.
+    if (err?.response?.status !== 401) {
+      console.error('Failed to load notifications:', err)
+    }
   } finally {
     loading.value = false
   }
@@ -166,18 +192,28 @@ function handleNotificationClick(notification: Notification) {
 }
 
 onMounted(() => {
-  loadNotifications()
-  // Refresh notifications every 30 seconds
-  refreshInterval = window.setInterval(() => {
+  if (auth.isAuthenticated) {
     loadNotifications()
-  }, 30000)
+    startRefresh()
+  }
 })
 
 onUnmounted(() => {
-  if (refreshInterval) {
-    clearInterval(refreshInterval)
-  }
+  stopRefresh()
 })
+
+watch(
+  () => auth.isAuthenticated,
+  (isAuth) => {
+    if (isAuth) {
+      loadNotifications()
+      startRefresh()
+    } else {
+      notifications.value = []
+      stopRefresh()
+    }
+  },
+)
 </script>
 
 <style scoped>

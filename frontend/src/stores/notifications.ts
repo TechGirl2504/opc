@@ -20,7 +20,11 @@ export const useNotificationsStore = defineStore('notifications', () => {
         unreadCount.value = response.data.meta?.unread_count || 0
       }
     } catch (error) {
-      console.error('Fetch notifications error:', error)
+      // Avoid noisy logs when user isn't authenticated yet.
+      const status = (error as any)?.response?.status
+      if (status !== 401) {
+        console.error('Fetch notifications error:', error)
+      }
     } finally {
       loading.value = false
     }
@@ -34,7 +38,10 @@ export const useNotificationsStore = defineStore('notifications', () => {
         return response.data.data.notifications
       }
     } catch (error) {
-      console.error('Fetch unread error:', error)
+      const status = (error as any)?.response?.status
+      if (status !== 401) {
+        console.error('Fetch unread error:', error)
+      }
     }
   }
 

@@ -140,23 +140,26 @@ const router = createRouter({
 })
 
 // Route guards
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   
-  // Public routes
-  const publicRoutes = ['/login', '/forgot-password', '/reset-password']
-  const isPublicRoute = publicRoutes.includes(to.path)
-
   // Check authentication
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next('/login')
-    return
+  if (to.meta.requiresAuth) {
+    const ok = await authStore.ensureUserLoaded()
+    if (!ok) {
+      next('/login')
+      return
+    }
   }
 
   // Redirect authenticated users away from auth pages
   if (to.meta.requiresGuest && authStore.isAuthenticated) {
-    next('/dashboard')
-    return
+    // Only redirect if the token is still valid (prevents dashboard flash on stale tokens).
+    const ok = await authStore.ensureUserLoaded()
+    if (ok) {
+      next('/dashboard')
+      return
+    }
   }
 
   // Check permission-based access (recommended)

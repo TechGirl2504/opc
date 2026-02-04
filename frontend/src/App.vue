@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AuthLayout from '@/layouts/AuthLayout.vue'
@@ -21,20 +21,15 @@ const layout = computed(() => {
   
   return OfficerLayout
 })
-
-onMounted(() => {
-  // Fetch user if token exists
-  if (authStore.isAuthenticated) {
-    authStore.fetchUser()
-  }
-})
 </script>
 
 <template>
-  <component :is="layout">
-    <router-view />
-  </component>
-  <PwaInstallPrompt />
+  <div>
+    <component :is="layout">
+      <router-view />
+    </component>
+    <PwaInstallPrompt />
+  </div>
 </template>
 
 <style scoped></style>
