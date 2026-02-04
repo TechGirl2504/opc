@@ -14,6 +14,25 @@ class ExampleTest extends TestCase
         $response = $this->postJson('/api/v1/auth/login', []);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['username', 'password']);
+            ->assertJson([
+                'success' => false,
+                'error' => [
+                    'code' => 'VALIDATION_ERROR',
+                ],
+            ])
+            ->assertJsonStructure([
+                'success',
+                'error' => [
+                    'code',
+                    'message',
+                    'errors' => [
+                        'username',
+                        'password',
+                    ],
+                ],
+                'meta' => [
+                    'timestamp',
+                ],
+            ]);
     }
 }
