@@ -19,11 +19,14 @@ return new class extends Migration
             $table->string('current_name', 255)->nullable();
             $table->string('requested_name', 255);
             $table->text('reason');
-            $table->foreignId('status_id')->default(1)->constrained('application_statuses')->onDelete('restrict');
-            $table->foreignId('created_by')->constrained('users')->onDelete('restrict');
-            $table->foreignId('assigned_police_officer_id')->nullable()->constrained('users')->onDelete('set null');
-            $table->foreignId('assigned_nis_officer_id')->nullable()->constrained('users')->onDelete('set null');
-            $table->foreignId('assigned_opc_approver_id')->nullable()->constrained('users')->onDelete('set null');
+            // Note: do NOT add FKs here. Some referenced tables are created in later migrations
+            // (e.g. `application_statuses`), and MySQL will fail `migrate:fresh` if the FK target
+            // does not exist yet. We add constraints in a follow-up migration.
+            $table->unsignedBigInteger('status_id')->default(1);
+            $table->unsignedBigInteger('created_by');
+            $table->unsignedBigInteger('assigned_police_officer_id')->nullable();
+            $table->unsignedBigInteger('assigned_nis_officer_id')->nullable();
+            $table->unsignedBigInteger('assigned_opc_approver_id')->nullable();
             $table->timestamp('submitted_at')->nullable();
             $table->timestamp('police_vetting_completed_at')->nullable();
             $table->timestamp('nis_vetting_completed_at')->nullable();
