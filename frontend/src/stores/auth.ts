@@ -7,12 +7,52 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const token = ref<string | null>(localStorage.getItem('auth_token') || null)
   const loading = ref(false)
+  let ensureUserPromise: Promise<boolean> | null = null
 
   const isAuthenticated = computed(() => !!token.value)
   const isAdmin = computed(() => user.value?.roles?.includes('admin') ?? false)
   const userRole = computed(() => user.value?.roles?.[0] ?? null)
   const userInstitution = computed(() => user.value?.institution)
   const userPermissions = computed(() => user.value?.permissions || [])
+
+  function clearAuth() {
+    token.value = null
+    user.value = null
+    localStorage.removeItem('auth_token')
+  }
+
+  /**
+   * Ensure `user` is loaded when a token exists.
+   *
+   * This prevents "dashboard flashes" on refresh when a stale token is present:
+   * we only treat the session as valid after `/auth/user` succeeds.
+   */
+  async function ensureUserLoaded(): Promise<boolean> {
+    if (!token.value) return false
+    if (user.value) return true
+
+    if (ensureUserPromise) return ensureUserPromise
+
+    ensureUserPromise = (async () => {
+      try {
+        const response = await authApi.user()
+        if (response.data.success) {
+          user.value = response.data.data.user
+          return true
+        }
+      } catch (error) {
+        // ignore, handled below
+      }
+
+      // Token is missing/expired/invalid.
+      clearAuth()
+      return false
+    })()
+
+    const result = await ensureUserPromise
+    ensureUserPromise = null
+    return result
+  }
 
   async function login(credentials: LoginCredentials) {
     loading.value = true
@@ -37,22 +77,16 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
-      token.value = null
-      user.value = null
-      localStorage.removeItem('auth_token')
+      clearAuth()
       router.push('/login')
     }
   }
 
   async function fetchUser() {
-    try {
-      const response = await authApi.user()
-      if (response.data.success) {
-        user.value = response.data.data.user
-      }
-    } catch (error) {
-      console.error('Fetch user error:', error)
-      logout()
+    const ok = await ensureUserLoaded()
+    if (!ok) {
+      // Keep behavior: if something calls fetchUser and it fails, return to login.
+      await logout()
     }
   }
 
@@ -112,6 +146,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     logout,
     fetchUser,
+    ensureUserLoaded,
     hasRole,
     hasAnyRole,
     hasPermission,

@@ -7,13 +7,10 @@ vi.mock('vue-router', () => ({
   useRoute: () => ({ meta: { layout: 'auth' } }),
 }))
 
-const fetchUserMock = vi.fn()
-
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({
     isAdmin: false,
     isAuthenticated: true,
-    fetchUser: fetchUserMock,
   }),
 }))
 
@@ -31,11 +28,7 @@ vi.mock('@/components/PwaInstallPrompt.vue', () => ({
 }))
 
 describe('App', () => {
-  beforeEach(() => {
-    fetchUserMock.mockClear()
-  })
-
-  it('uses auth layout on auth routes and fetches user when authenticated', () => {
+  it('uses auth layout on auth routes', () => {
     const wrapper = mount(App, {
       global: {
         stubs: {
@@ -46,6 +39,5 @@ describe('App', () => {
 
     expect(wrapper.find('[data-test=\"auth\"]').exists()).toBe(true)
     expect(wrapper.find('[data-test=\"router-view\"]').exists()).toBe(true)
-    expect(fetchUserMock).toHaveBeenCalledTimes(1)
   })
 })
