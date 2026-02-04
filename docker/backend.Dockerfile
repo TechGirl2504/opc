@@ -16,18 +16,24 @@ FROM php:8.2-apache-bookworm AS runtime
 WORKDIR /var/www/html
 
 # System deps + PHP extensions commonly needed by Laravel
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends \
+RUN set -eux; \
+  apt-get update -o Acquire::Retries=3; \
+  apt-get install -y --no-install-recommends \
+    $PHPIZE_DEPS \
+    ca-certificates \
     curl \
     libzip-dev \
-    unzip \
-  && docker-php-ext-install -j"$(nproc)" \
+    zlib1g-dev \
+    libsqlite3-dev \
+    unzip; \
+  docker-php-ext-install -j"$(nproc)" \
     pdo \
     pdo_mysql \
     pdo_sqlite \
-    zip \
-  && a2enmod rewrite headers \
-  && rm -rf /var/lib/apt/lists/*
+    zip; \
+  a2enmod rewrite headers; \
+  apt-get purge -y --auto-remove $PHPIZE_DEPS; \
+  rm -rf /var/lib/apt/lists/*
 
 # Configure Apache to serve Laravel public/
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
