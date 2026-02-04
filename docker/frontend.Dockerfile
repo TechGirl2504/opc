@@ -1,7 +1,10 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
+# `npm ci` runs lifecycle scripts (including `postinstall`), so we must copy any
+# referenced scripts before installing dependencies.
 COPY frontend/package.json frontend/package-lock.json ./
+COPY frontend/scripts/ ./scripts/
 RUN npm ci --no-audit --no-fund
 
 COPY frontend/ ./
