@@ -47,8 +47,17 @@ COPY backend/ ./
 COPY --from=vendor /app/vendor ./vendor
 
 # Laravel writable dirs
-RUN chown -R www-data:www-data storage bootstrap/cache \
-  && chmod -R 775 storage bootstrap/cache
+RUN set -eux; \
+  # These directories may be absent in the Docker context (e.g. ignored by .dockerignore or empty).
+  # Create the common Laravel runtime paths explicitly (matches the cookbook guidance).
+  mkdir -p \
+    storage/framework/cache/data \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
+    bootstrap/cache; \
+  chown -R www-data:www-data storage bootstrap/cache; \
+  chmod -R ug+rwX storage bootstrap/cache
 
 # Basic runtime defaults (override in Coolify)
 ENV APP_ENV=production \
