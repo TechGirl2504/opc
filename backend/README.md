@@ -17,7 +17,7 @@ Optional (only if you use the bundled Laravel Vite assets in this folder):
 From the repo root:
 
 ```bash
-cd cnmis-api
+cd backend
 composer install
 cp .env.example .env
 php artisan key:generate
@@ -43,7 +43,7 @@ Then in `.env`:
 
 ```env
 DB_CONNECTION=sqlite
-DB_DATABASE=/absolute/path/to/cnmis-api/database/database.sqlite
+DB_DATABASE=/absolute/path/to/backend/database/database.sqlite
 ```
 
 #### Database (MySQL - example)

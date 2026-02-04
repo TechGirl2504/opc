@@ -1,7 +1,19 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
 
+function getApiBaseUrl(): string {
+  // Prefer runtime-injected config (Coolify/Docker) to avoid rebuilds.
+  const runtime = (window as any).__ENV__?.VITE_API_BASE_URL as string | undefined
+  if (runtime && runtime.trim().length > 0) return runtime
+
+  // Fallback to Vite build-time env (local dev)
+  const buildTime = import.meta.env.VITE_API_BASE_URL as string | undefined
+  if (buildTime && buildTime.trim().length > 0) return buildTime
+
+  return 'http://localhost:8000/api/v1'
+}
+
 const api: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1',
+  baseURL: getApiBaseUrl(),
   withCredentials: true, // Required for Sanctum SPA
   headers: {
     'Accept': 'application/json',
