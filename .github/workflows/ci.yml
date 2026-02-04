@@ -62,10 +62,13 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: frontend/package.json
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: |
+          rm -rf node_modules
+          npm ci --no-audit --no-fund --include=optional
+          node scripts/ensure-rollup-native.cjs
 
       - name: Typecheck
         run: npm run type-check
