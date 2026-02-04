@@ -12,13 +12,13 @@ Frontend web app for the CNMIS vetting system.
 From the repo root:
 
 ```bash
-cd cnmis-frontend
+cd frontend
 npm install
 ```
 
 ### Configure `.env`
 
-Create `cnmis-frontend/.env` (or copy from `.env.example` if present) and set:
+Create `frontend/.env` (or copy from `.env.example` if present) and set:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8000/api/v1
@@ -81,7 +81,7 @@ If you need to test from a phone while developing, options include:
 If you see browser CORS errors calling the API:
 
 - Confirm `VITE_API_BASE_URL` is correct
-- Ensure the backend allows your frontend origin in `cnmis-api/.env` (`CORS_ALLOWED_ORIGINS`)
+- Ensure the backend allows your frontend origin in `backend/.env` (`CORS_ALLOWED_ORIGINS`)
 
 ### PWA not updating
 

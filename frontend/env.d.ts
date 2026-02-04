@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/client" />
 
 declare module 'virtual:pwa-register' {
   export interface RegisterSWOptions {
@@ -13,3 +14,13 @@ declare module 'virtual:pwa-register' {
   
   export const registerSW: RegisterSW
 }
+
+declare global {
+  interface Window {
+    __ENV__?: {
+      VITE_API_BASE_URL?: string
+    }
+  }
+}
+
+export {}

@@ -7,6 +7,13 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  /**
+   * PWA + Workbox in `vite dev` is noisy because dev serves assets from memory,
+   * and `dev-dist/` often has no matching build artifacts for `globPatterns`.
+   *
+   * If you need to test the real PWA behavior locally, prefer:
+   * `npm run build && npm run preview`
+   */
   plugins: [
     vue(),
     vueDevTools(),
@@ -69,8 +76,9 @@ export default defineConfig({
           }
         ]
       },
+      // Disable SW generation in dev to avoid Workbox glob warnings.
       devOptions: {
-        enabled: true,
+        enabled: false,
         type: 'module'
       }
     })
