@@ -68,6 +68,7 @@ jobs:
         run: |
           rm -rf node_modules
           npm ci --no-audit --no-fund --include=optional
+          node scripts/ensure-rollup-native.cjs
 
       - name: Typecheck
         run: npm run type-check
