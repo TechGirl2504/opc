@@ -7,6 +7,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/cnmis/',
   /**
    * PWA + Workbox in `vite dev` is noisy because dev serves assets from memory,
    * and `dev-dist/` often has no matching build artifacts for `globPatterns`.
@@ -28,17 +29,17 @@ export default defineConfig({
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
-        scope: '/',
-        start_url: '/',
+        scope: '/cnmis/',
+        start_url: '/cnmis/',
         icons: [
           {
-            src: '/pwa-192x192.png',
+            src: '/cnmis/pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any maskable'
           },
           {
-            src: '/pwa-512x512.png',
+            src: '/cnmis/pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
