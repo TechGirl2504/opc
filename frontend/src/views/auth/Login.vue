@@ -129,9 +129,9 @@ async function handleLogin() {
     // Redirect based on user role
     const role = authStore.userRole
     if (role === 'admin') {
-      router.push('/dashboard')
+      router.push({ name: 'Dashboard' })
     } else {
-      router.push('/dashboard')
+      router.push({ name: 'Dashboard' })
     }
   } catch (err: any) {
     console.error('Login error:', err)
