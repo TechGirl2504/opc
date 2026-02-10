@@ -6,7 +6,7 @@
           <v-card-title class="text-h5 text-center">404 - Page Not Found</v-card-title>
           <v-card-text class="text-center">
             <p>The page you're looking for doesn't exist.</p>
-            <v-btn color="primary" @click="$router.push('/dashboard')" class="mt-4">
+            <v-btn color="primary" @click="$router.push({ name: 'Dashboard' })" class="mt-4">
               Go to Dashboard
             </v-btn>
           </v-card-text>

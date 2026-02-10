@@ -22,7 +22,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/',
-    redirect: '/dashboard'
+    redirect: { name: 'Dashboard' }
   },
   {
     path: '/dashboard',
@@ -147,7 +147,7 @@ router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresAuth) {
     const ok = await authStore.ensureUserLoaded()
     if (!ok) {
-      next('/login')
+      next({ name: 'Login' })
       return
     }
   }
@@ -157,20 +157,20 @@ router.beforeEach(async (to, from, next) => {
     // Only redirect if the token is still valid (prevents dashboard flash on stale tokens).
     const ok = await authStore.ensureUserLoaded()
     if (ok) {
-      next('/dashboard')
+      next({ name: 'Dashboard' })
       return
     }
   }
 
   // Check permission-based access (recommended)
   if (to.meta.permissions && !authStore.hasAnyPermission(to.meta.permissions as string[])) {
-    next('/unauthorized')
+    next({ name: 'Unauthorized' })
     return
   }
 
   // Backward compatibility: some routes may still use roles
   if (to.meta.roles && !authStore.hasAnyRole(to.meta.roles as string[])) {
-    next('/unauthorized')
+    next({ name: 'Unauthorized' })
     return
   }
 
