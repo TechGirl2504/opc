@@ -42,8 +42,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Unauthorized - clear token and redirect to login
       localStorage.removeItem('auth_token')
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login'
+      const basePath = import.meta.env.BASE_URL || '/'
+      const loginPath = `${basePath}login`.replace(/\/+/g, '/') // normalize double slashes
+      if (window.location.pathname !== loginPath) {
+        window.location.href = loginPath
       }
     }
     return Promise.reject(error)
