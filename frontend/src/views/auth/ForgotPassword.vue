@@ -37,7 +37,7 @@
             <v-btn
               variant="text"
               block
-              @click="$router.push('/login')"
+              @click="$router.push({ name: 'Login' })"
             >
               Back to Login
             </v-btn>

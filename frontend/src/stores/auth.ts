@@ -78,7 +78,7 @@ export const useAuthStore = defineStore('auth', () => {
       console.error('Logout error:', error)
     } finally {
       clearAuth()
-      router.push('/login')
+      router.push({ name: 'Login' })
     }
   }
 

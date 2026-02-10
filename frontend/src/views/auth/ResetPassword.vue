@@ -69,7 +69,7 @@
             <v-btn
               variant="text"
               block
-              @click="$router.push('/login')"
+              @click="$router.push({ name: 'Login' })"
             >
               Back to Login
             </v-btn>
@@ -162,7 +162,7 @@ async function handleResetPassword() {
     toast.success('Password reset successful!')
     
     setTimeout(() => {
-      router.push('/login')
+      router.push({ name: 'Login' })
     }, 2000)
   } catch (err: any) {
     const errorMessage = err.response?.data?.error?.message || 
