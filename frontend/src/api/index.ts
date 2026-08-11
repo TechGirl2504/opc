@@ -11,7 +11,7 @@ function getApiBaseUrl(): string {
   // Fallback to Vite build-time env (local dev)
   const buildTime = import.meta.env.VITE_API_BASE_URL as string | undefined
   if (buildTime && buildTime.trim().length > 0) {
-    if (isLocalDevHost && /^https?:\/\/localhost:8000\/api\/v1\/?$/i.test(buildTime.trim())) {
+    if (import.meta.env.DEV && isLocalDevHost && /^https?:\/\/localhost:8000\/api\/v1\/?$/i.test(buildTime.trim())) {
       return '/api/v1'
     }
 

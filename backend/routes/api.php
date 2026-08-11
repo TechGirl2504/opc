@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\DecisionController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\PushSubscriptionController;
 use App\Http\Controllers\Api\Admin\InstitutionController;
 use App\Http\Controllers\Api\Admin\ApplicationStatusController;
 use App\Http\Controllers\Api\Admin\VettingTypeController;
@@ -99,6 +100,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/notifications/unread', [NotificationController::class, 'unread']);
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+
+        // Browser push subscriptions
+        Route::get('/push-subscriptions', [PushSubscriptionController::class, 'index']);
+        Route::post('/push-subscriptions', [PushSubscriptionController::class, 'store']);
+        Route::delete('/push-subscriptions', [PushSubscriptionController::class, 'destroy']);
 
         // Admin Configuration Management Routes (Admin only)
         // Document Types - GET accessible to all authenticated users (needed for uploads)

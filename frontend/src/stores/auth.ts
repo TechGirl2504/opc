@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi, type LoginCredentials, type User } from '@/api/auth'
+import { pushApi } from '@/api/push'
 import router from '@/router'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -68,6 +69,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     try {
+      const subscriptionResponse = await pushApi.list().catch(() => null)
+      const endpoints = subscriptionResponse?.data?.data?.map(subscription => subscription.endpoint) ?? []
+      for (const endpoint of endpoints) {
+        await pushApi.unsubscribe(endpoint).catch(() => null)
+      }
+
       await authApi.logout()
     } catch (error) {
       console.error('Logout error:', error)

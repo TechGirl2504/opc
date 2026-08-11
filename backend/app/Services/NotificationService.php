@@ -5,9 +5,17 @@ namespace App\Services;
 use App\Models\Notification;
 use App\Models\User;
 use App\Models\Application;
+use Illuminate\Support\Facades\DB;
 
 class NotificationService
 {
+    protected WebPushService $webPushService;
+
+    public function __construct(WebPushService $webPushService)
+    {
+        $this->webPushService = $webPushService;
+    }
+
     /**
      * Create a notification for a user
      */
@@ -19,7 +27,7 @@ class NotificationService
         ?string $relatedModelType = null,
         ?int $relatedModelId = null
     ): Notification {
-        return Notification::create([
+        $notification = Notification::create([
             'user_id' => $user->id,
             'type' => $type,
             'title' => $title,
@@ -27,6 +35,18 @@ class NotificationService
             'related_model_type' => $relatedModelType,
             'related_model_id' => $relatedModelId,
         ]);
+
+        if ($this->webPushService->isEnabled()) {
+            DB::afterCommit(function () use ($notification): void {
+                $freshNotification = Notification::with('user')->find($notification->id);
+
+                if ($freshNotification && $freshNotification->user) {
+                    $this->webPushService->sendToUser($freshNotification->user, $freshNotification);
+                }
+            });
+        }
+
+        return $notification;
     }
 
     /**

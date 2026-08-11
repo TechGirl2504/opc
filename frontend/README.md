@@ -22,6 +22,7 @@ Create `frontend/.env` (or copy from `.env.example` if present) and set:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8000/api/v1
+VITE_WEB_PUSH_VAPID_PUBLIC_KEY=<your-vapid-public-key>
 ```
 
 ### Run locally (dev)
@@ -74,6 +75,18 @@ If you need to test from a phone while developing, options include:
 - **Use HTTPS** for the frontend origin (recommended for LAN testing)
 - **Use ADB reverse** (Android USB debugging) so the phone can access your computer’s localhost
 
+#### Browser alerts
+
+CNMIS supports standard Web Push notifications in preview/production builds.
+
+- The browser-alert opt-in appears only when the service worker is active.
+- Local Vite dev disables the service worker on purpose, so use `npm run build && npm run preview` to test push.
+- The browser must allow notifications for the CNMIS origin.
+- The backend also needs matching VAPID keys:
+  - `WEB_PUSH_SUBJECT`
+  - `WEB_PUSH_VAPID_PUBLIC_KEY`
+  - `WEB_PUSH_VAPID_PRIVATE_KEY`
+
 ### Troubleshooting
 
 ### CORS errors
@@ -91,5 +104,4 @@ If the service worker is “stuck” during development/preview:
   - Unregister service worker
   - Clear storage
   - Reload
-
 

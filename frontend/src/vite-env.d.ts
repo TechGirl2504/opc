@@ -14,3 +14,11 @@ declare module 'virtual:pwa-register' {
   export const registerSW: RegisterSW
 }
 
+interface ImportMetaEnv {
+  readonly VITE_API_BASE_URL?: string
+  readonly VITE_WEB_PUSH_VAPID_PUBLIC_KEY?: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
