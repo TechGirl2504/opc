@@ -95,7 +95,7 @@
                       <div class="mb-2">
                         <label class="text-body-2 text-medium-emphasis mb-1 d-block">
                           Select Documents
-                          <span class="text-caption ml-1">Max 5 files, 10MB each (PDF, JPG, PNG)</span>
+                          <span class="text-caption ml-1">Unlimited files, 50MB each (PDF, JPG, PNG)</span>
                         </label>
                         <input
                           ref="fileInputRef"
@@ -110,13 +110,13 @@
                           color="primary"
                           variant="outlined"
                           prepend-icon="mdi-paperclip"
-                          :disabled="loading || validFiles.length >= 5"
+                          :disabled="loading"
                           @click="triggerFileInput"
                         >
-                          {{ validFiles.length >= 5 ? 'Maximum files reached' : 'Select Files' }}
+                          Select Files
                         </v-btn>
                         <span v-if="validFiles.length > 0" class="ml-2 text-caption">
-                          {{ validFiles.length }}/5 files selected
+                          {{ validFiles.length }} files selected
                         </span>
                       </div>
 
@@ -166,7 +166,7 @@
 
                       <!-- New Files -->
                       <v-list v-if="validFiles.length > 0" class="mt-4">
-                        <v-list-subheader>New Files to Upload ({{ validFiles.length }}/5)</v-list-subheader>
+                        <v-list-subheader>New Files to Upload ({{ validFiles.length }})</v-list-subheader>
                         <v-list-item
                           v-for="(file, index) in validFiles"
                           :key="index"
@@ -335,7 +335,7 @@ const rules = {
     if (!v || !Array.isArray(v) || v.length === 0) return true
     const file = v[0]
     if (!file || !file.size) return true
-    return file.size <= 10 * 1024 * 1024 || 'File size must be less than 10MB'
+    return file.size <= 50 * 1024 * 1024 || 'File size must be less than 50MB'
   },
   fileType: (v: File[] | null | undefined) => {
     if (!v || !Array.isArray(v) || v.length === 0) return true
@@ -493,7 +493,6 @@ async function loadRecommendations() {
 }
 
 // File handling functions
-const MAX_FILES = 5
 const MAX_FILE_SIZE_MB = 50
 const ALLOWED_MIMES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
 const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png']
@@ -539,22 +538,7 @@ function handleFileInputChange(event: Event) {
 
   fileErrors.value = []
 
-  const currentTotalFiles = validFiles.value.length + newFiles.length
-  if (currentTotalFiles > MAX_FILES) {
-    fileErrors.value.push(`Maximum ${MAX_FILES} files allowed. You can add ${MAX_FILES - validFiles.value.length} more file(s).`)
-    if (fileInputRef.value) {
-      fileInputRef.value.value = ''
-    }
-    return
-  }
-
-  const remainingSlots = MAX_FILES - validFiles.value.length
-  const filesToAdd = newFiles.slice(0, remainingSlots)
-  if (newFiles.length > remainingSlots) {
-    fileErrors.value.push(`Maximum ${MAX_FILES} files allowed. Only ${remainingSlots} more file(s) can be added.`)
-  }
-
-  filesToAdd.forEach((file) => {
+  newFiles.forEach((file) => {
     const isDuplicate = validFiles.value.some(existingFile =>
       existingFile.name === file.name && existingFile.size === file.size
     )

@@ -14,7 +14,7 @@ class DocumentTypeSeeder extends Seeder
                 'name' => 'Supporting Document',
                 'code' => 'supporting_document',
                 'description' => 'Supporting documents uploaded with application',
-                'max_file_size' => 10485760, // 10MB
+                'max_file_size' => 52428800, // 50MB
                 'allowed_mime_types' => ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'],
                 'is_active' => true,
             ],
@@ -22,7 +22,7 @@ class DocumentTypeSeeder extends Seeder
                 'name' => 'Police Vetting Report',
                 'code' => 'police_vetting_report',
                 'description' => 'Scanned police vetting report',
-                'max_file_size' => 10485760, // 10MB
+                'max_file_size' => 52428800, // 50MB
                 'allowed_mime_types' => ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'],
                 'is_active' => true,
             ],
@@ -30,7 +30,7 @@ class DocumentTypeSeeder extends Seeder
                 'name' => 'NIS Vetting Report',
                 'code' => 'nis_vetting_report',
                 'description' => 'Scanned NIS vetting report',
-                'max_file_size' => 10485760, // 10MB
+                'max_file_size' => 52428800, // 50MB
                 'allowed_mime_types' => ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'],
                 'is_active' => true,
             ],
@@ -38,7 +38,7 @@ class DocumentTypeSeeder extends Seeder
                 'name' => 'Other Document',
                 'code' => 'other',
                 'description' => 'Other supporting documents',
-                'max_file_size' => 10485760, // 10MB
+                'max_file_size' => 52428800, // 50MB
                 'allowed_mime_types' => ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'],
                 'is_active' => true,
             ],

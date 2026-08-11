@@ -25,8 +25,8 @@ export default defineConfig({
         name: 'CNMIS - Change of Name Management',
         short_name: 'CNMIS',
         description: 'Change of Name Management Information System for OPC',
-        theme_color: '#1976d2',
-        background_color: '#ffffff',
+        theme_color: '#12385f',
+        background_color: '#eef3f8',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/cnmis/',
@@ -95,6 +95,12 @@ export default defineConfig({
     strictPort: false,
     proxy: {
       '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+        ws: true
+      },
+      '/sanctum': {
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,

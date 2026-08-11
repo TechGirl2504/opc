@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use App\Models\Application;
 use App\Models\DocumentType;
+use App\Services\ApplicationService;
 
 class StoreDocumentRequest extends FormRequest
 {
@@ -15,14 +16,16 @@ class StoreDocumentRequest extends FormRequest
     {
         $applicationId = $this->route('id');
         $application = Application::find($applicationId);
-        
-        // User must have access to the application
+
         if (!$application) {
             return false;
         }
 
-        // Permission check is enforced on the route; keep request authorization permission-based too.
-        return $this->user()?->hasPermissionTo('upload documents') ?? false;
+        if (!$this->user()?->hasPermissionTo('upload documents')) {
+            return false;
+        }
+
+        return app(ApplicationService::class)->canAccessApplication($application, $this->user());
     }
 
     /**

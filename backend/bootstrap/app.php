@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Ensure CORS headers are added to API responses (including errors like 401/403)
         $middleware->prepend(HandleCors::class);
+        $middleware->statefulApi();
 
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,

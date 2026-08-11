@@ -1,18 +1,34 @@
 <template>
-  <div>
-    <div class="d-flex justify-space-between align-center mb-4">
-      <h1 class="text-h4">{{ isEditMode ? 'Edit Application' : 'Create Application' }}</h1>
-      <v-btn
-        variant="text"
-        prepend-icon="mdi-arrow-left"
-        @click="handleCancel"
-      >
-        {{ isEditMode ? 'Back to Application' : 'Back to List' }}
-      </v-btn>
-    </div>
+  <div class="gov-page">
+    <v-sheet class="gov-hero">
+      <div class="gov-hero__inner">
+        <div>
+          <div class="gov-hero__eyebrow">Case entry</div>
+          <h1 class="text-h4 text-md-h3 font-weight-bold mb-2">
+            {{ isEditMode ? 'Edit Application' : 'Create Application' }}
+          </h1>
+          <div class="text-body-2 text-medium-emphasis">
+            Maintain complete and accurate records before they move into vetting.
+          </div>
+        </div>
+        <v-btn
+          class="gov-hero__action"
+          variant="tonal"
+          prepend-icon="mdi-arrow-left"
+          @click="handleCancel"
+        >
+          {{ isEditMode ? 'Back to Application' : 'Back to List' }}
+        </v-btn>
+      </div>
+    </v-sheet>
 
-    <v-card>
-      <v-card-title>Application Details</v-card-title>
+    <v-card class="gov-card" elevation="2">
+      <v-card-title class="gov-card__title">
+        <div>
+          <div class="text-h6">Application Details</div>
+          <div class="text-caption text-medium-emphasis">Capture the personal and location information required for processing</div>
+        </div>
+      </v-card-title>
       <v-card-text>
         <v-progress-linear
           v-if="loadingApplication"
@@ -21,7 +37,7 @@
           class="mb-4"
         ></v-progress-linear>
         <v-alert
-          v-else-if="isEditMode && isAssigned"
+          v-else-if="isEditMode && isEditLocked"
           type="error"
           variant="tonal"
           class="mb-4"
@@ -45,7 +61,7 @@
                 label="Full Name *"
                 :rules="fullNameRules"
                 variant="outlined"
-                :disabled="isAssigned"
+                :disabled="isEditLocked"
                 required
                 hint="Only letters and spaces allowed"
                 persistent-hint
@@ -58,10 +74,49 @@
                 label="National ID"
                 :rules="nationalIdRules"
                 variant="outlined"
-                :disabled="isAssigned"
+                :disabled="isEditLocked"
                 hint="Optional: 8 characters, uppercase letters and numbers only (e.g., ABC12345)"
                 persistent-hint
                 @input="form.national_id = form.national_id.toUpperCase()"
+              />
+            </v-col>
+
+            <v-col cols="12" md="4">
+              <v-text-field
+                v-model="form.district"
+                label="District *"
+                :rules="districtRules"
+                variant="outlined"
+                :disabled="isEditLocked"
+                required
+                hint="Enter the district"
+                persistent-hint
+              />
+            </v-col>
+
+            <v-col cols="12" md="4">
+              <v-text-field
+                v-model="form.traditional_authority"
+                label="T/A *"
+                :rules="traditionalAuthorityRules"
+                variant="outlined"
+                :disabled="isEditLocked"
+                required
+                hint="Traditional authority"
+                persistent-hint
+              />
+            </v-col>
+
+            <v-col cols="12" md="4">
+              <v-text-field
+                v-model="form.village"
+                label="Village *"
+                :rules="villageRules"
+                variant="outlined"
+                :disabled="isEditLocked"
+                required
+                hint="Enter the village"
+                persistent-hint
               />
             </v-col>
 
@@ -71,7 +126,7 @@
                 label="Current Name"
                 :rules="currentNameRules"
                 variant="outlined"
-                :disabled="isAssigned"
+                :disabled="isEditLocked"
                 hint="Optional: Leave blank if this is first-time registration"
                 persistent-hint
               />
@@ -83,7 +138,7 @@
                 label="Requested Name *"
                 :rules="requestedNameRules"
                 variant="outlined"
-                :disabled="isAssigned"
+                :disabled="isEditLocked"
                 required
                 hint="Must be different from current name"
                 persistent-hint
@@ -96,7 +151,7 @@
                 label="Reason for Change *"
                 :rules="reasonRules"
                 variant="outlined"
-                :disabled="isAssigned"
+                :disabled="isEditLocked"
                 rows="4"
                 required
                 hint="Minimum 10 characters required"
@@ -155,7 +210,7 @@
                   <div class="mb-2">
                     <label class="text-body-2 text-medium-emphasis mb-1 d-block">
                       {{ isEditMode ? 'Upload Additional Documents (Optional)' : 'Upload Documents (Optional)' }}
-                      <span class="text-caption ml-1">Max 5 files, 10MB each (PDF, JPG, PNG)</span>
+                      <span class="text-caption ml-1">Unlimited files, 50MB each (PDF, JPG, PNG)</span>
                     </label>
                     <input
                       ref="fileInputRef"
@@ -170,13 +225,13 @@
                       color="primary"
                       variant="outlined"
                       prepend-icon="mdi-paperclip"
-                      :disabled="loading || uploadingDocuments || validFiles.length >= 5"
+                      :disabled="loading || uploadingDocuments"
                       @click="triggerFileInput"
                     >
-                      {{ validFiles.length >= 5 ? 'Maximum files reached' : 'Select Files' }}
+                      Select Files
                     </v-btn>
                     <span v-if="validFiles.length > 0" class="ml-2 text-caption">
-                      {{ validFiles.length }}/5 files selected
+                      {{ validFiles.length }} files selected
                     </span>
                   </div>
 
@@ -205,7 +260,7 @@
                   </v-alert>
 
                   <v-list v-if="validFiles.length > 0" class="mt-4">
-                    <v-list-subheader>New Files to Upload ({{ validFiles.length }}/5)</v-list-subheader>
+                    <v-list-subheader>New Files to Upload ({{ validFiles.length }})</v-list-subheader>
                     <v-list-item
                       v-for="(file, index) in validFiles"
                       :key="index"
@@ -230,7 +285,7 @@
                   <v-btn
                     v-if="isEditMode && validFiles.length > 0"
                     color="primary"
-                    variant="outlined"
+                    variant="tonal"
                     prepend-icon="mdi-upload"
                     :disabled="!selectedDocumentType || uploadingDocuments"
                     :loading="uploadingDocuments"
@@ -246,18 +301,20 @@
 
           <v-divider class="my-4" />
 
-          <div class="d-flex justify-end gap-2">
+          <div class="form-actions">
             <v-btn
+              class="form-actions__button"
               variant="text"
               @click="handleCancel"
             >
               Cancel
             </v-btn>
             <v-btn
+              class="form-actions__button"
               type="submit"
               color="primary"
               :loading="loading"
-              :disabled="!valid || loading || isAssigned"
+              :disabled="!valid || loading || isEditLocked"
             >
               {{ isEditMode ? 'Update Application' : 'Create Application' }}
             </v-btn>
@@ -309,14 +366,24 @@ const applicationId = computed(() => {
 
 const isEditMode = computed(() => !!applicationId.value)
 
-const isAssigned = computed(() => {
+const isAdminReviewAfterApproverReturn = computed(() => {
+  return authStore.isAdmin
+    && applicationData.value?.status?.code === 'opc_review'
+    && !!applicationData.value?.approver_send_back_reason
+})
+
+const isEditLocked = computed(() => {
   if (!applicationData.value) return false
+  if (isAdminReviewAfterApproverReturn.value) return false
   return !!(applicationData.value.assigned_police_officer || applicationData.value.assigned_nis_officer)
 })
 
 const form = reactive({
   full_name: '',
   national_id: '',
+  district: '',
+  traditional_authority: '',
+  village: '',
   current_name: '',
   requested_name: '',
   reason: ''
@@ -347,6 +414,15 @@ const currentNameRules = [
   }
 ]
 
+const locationRules = (label: string) => [
+  (v: string) => !!v || `${label} is required`,
+  (v: string) => (v && v.length <= 255) || `${label} must not exceed 255 characters`
+]
+
+const districtRules = locationRules('District')
+const traditionalAuthorityRules = locationRules('T/A')
+const villageRules = locationRules('Village')
+
 const requestedNameRules = [
   (v: string) => !!v || 'Requested name is required',
   (v: string) => (v && v.length >= 2) || 'Requested name must be at least 2 characters',
@@ -368,7 +444,6 @@ const reasonRules = [
 const fileRules = [
   (files: File[]) => {
     if (!files || files.length === 0) return true
-    if (files.length > 5) return 'Maximum 5 files allowed'
     return true
   }
 ]
@@ -394,7 +469,7 @@ function getFileIconColor(fileName: string): string {
 }
 
 function validateFile(file: File): string | null {
-  // Check file size (10MB = 10 * 1024 * 1024 bytes)
+  // Check file size (50MB = 50 * 1024 * 1024 bytes)
   const maxSize = 50 * 1024 * 1024
   if (file.size > maxSize) {
     return `${file.name}: File size exceeds 50MB`
@@ -429,27 +504,8 @@ function handleFileInputChange(event: Event) {
   // Convert FileList to Array
   const newFiles = Array.from(files)
 
-  // Combine with existing valid files (up to 5 total)
-  const currentCount = validFiles.value.length
-  const remainingSlots = 5 - currentCount
-
-  if (remainingSlots <= 0) {
-    fileErrors.value.push('Maximum 5 files allowed. Please remove some files first.')
-    // Reset input
-    if (fileInputRef.value) {
-      fileInputRef.value.value = ''
-    }
-    return
-  }
-
-  // Take only as many files as we have slots
-  const filesToAdd = newFiles.slice(0, remainingSlots)
-  if (newFiles.length > remainingSlots) {
-    fileErrors.value.push(`Maximum 5 files allowed. Only ${remainingSlots} more file(s) can be added.`)
-  }
-
   // Validate and add new files
-  filesToAdd.forEach((file) => {
+  newFiles.forEach((file) => {
     // Check for duplicates
     const isDuplicate = validFiles.value.some(existingFile =>
       existingFile.name === file.name && existingFile.size === file.size
@@ -493,8 +549,12 @@ async function loadApplication() {
       const app = response.data.data as Application
       applicationData.value = app
 
-      // Check if application is assigned - if so, redirect back
-      if (app.assigned_police_officer || app.assigned_nis_officer) {
+      // Block direct edits for assigned applications unless admin is reviewing an approver send-back.
+      const canAdminEditAfterSendBack = authStore.isAdmin
+        && app.status?.code === 'opc_review'
+        && !!app.approver_send_back_reason
+
+      if (!canAdminEditAfterSendBack && (app.assigned_police_officer || app.assigned_nis_officer)) {
         toast.error('Cannot edit application that has been assigned to an officer')
         router.push({ name: 'ApplicationDetail', params: { id: applicationId.value } })
         return
@@ -502,6 +562,9 @@ async function loadApplication() {
 
       form.full_name = app.full_name
       form.national_id = app.national_id || ''
+      form.district = app.district || ''
+      form.traditional_authority = app.traditional_authority || ''
+      form.village = app.village || ''
       form.current_name = app.current_name || ''
       form.requested_name = app.requested_name
       form.reason = app.reason
@@ -752,8 +815,8 @@ async function handleSubmit() {
   try {
     let response
     if (isEditMode.value) {
-      // Check if application is assigned - cannot edit if assigned
-      if (applicationData.value && (applicationData.value.assigned_police_officer || applicationData.value.assigned_nis_officer)) {
+      // Check if application is assigned - cannot edit if assigned, unless this is the admin approver-return review flow.
+      if (isEditLocked.value) {
         toast.error('Cannot edit application that has been assigned to an officer')
         router.push({ name: 'ApplicationDetail', params: { id: applicationId.value } })
         return
@@ -780,6 +843,9 @@ async function handleSubmit() {
       const formData = new FormData()
       formData.append('full_name', form.full_name)
       if (form.national_id) formData.append('national_id', form.national_id)
+      formData.append('district', form.district)
+      formData.append('traditional_authority', form.traditional_authority)
+      formData.append('village', form.village)
       if (form.current_name) formData.append('current_name', form.current_name)
       formData.append('requested_name', form.requested_name)
       formData.append('reason', form.reason)
@@ -838,7 +904,44 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.gap-2 {
+.gov-hero {
+  margin-bottom: 20px;
+}
+
+.gov-hero__inner {
+  align-items: center;
+}
+
+.gov-hero__action {
+  flex-shrink: 0;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
   gap: 8px;
+}
+
+.form-actions__button {
+  min-width: 140px;
+}
+
+.gov-card :deep(.v-card) {
+  border-radius: 16px;
+}
+
+@media (max-width: 600px) {
+  .gov-hero__action {
+    width: 100%;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .form-actions__button {
+    width: 100%;
+    min-width: 0;
+  }
 }
 </style>

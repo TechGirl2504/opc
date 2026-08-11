@@ -1,79 +1,84 @@
 <template>
-  <v-container fluid class="fill-height pa-4 pa-sm-8">
+  <v-container fluid class="gov-auth-shell pa-4 pa-sm-8">
     <v-row align="center" justify="center" class="fill-height">
       <v-col cols="12" sm="9" md="6" lg="4" xl="3">
-        <v-card elevation="6" class="pa-4 pa-sm-6" rounded="lg" max-width="520">
-          <v-card-title class="text-h5 text-sm-h4 text-center mb-2">
-            CNMIS Login
-          </v-card-title>
-          <v-card-subtitle class="text-center mb-5">
-            Change of Name Management Information System
-          </v-card-subtitle>
-
-          <v-form ref="formRef" v-model="valid" @submit.prevent="handleLogin">
-            <v-text-field
-              v-model="form.username"
-              label="Username"
-              prepend-inner-icon="mdi-account"
-              :rules="usernameRules"
-              required
-              variant="outlined"
-              density="comfortable"
-              autocomplete="username"
-              class="mb-3"
-            />
-
-            <v-text-field
-              v-model="form.password"
-              label="Password"
-              type="password"
-              prepend-inner-icon="mdi-lock"
-              :rules="passwordRules"
-              required
-              variant="outlined"
-              density="comfortable"
-              autocomplete="current-password"
-              class="mb-3"
-              @keyup.enter="handleLogin"
-            />
-
-            <div class="d-flex flex-wrap justify-space-between align-center gap-2 mb-4">
-              <v-checkbox
-                v-model="rememberMe"
-                label="Remember me"
-                hide-details
-                density="compact"
-              />
-              <router-link
-                to="/forgot-password"
-                class="text-decoration-none text-primary"
-              >
-                Forgot Password?
-              </router-link>
+        <v-card elevation="6" class="gov-auth-card pa-4 pa-sm-6" max-width="520">
+          <div class="gov-auth-card__content">
+            <div class="text-center mb-6">
+              <div class="gov-auth-brand mb-4">CNMIS</div>
+              <v-card-title class="text-h5 text-sm-h4 text-center mb-2">
+                Login
+              </v-card-title>
+              <v-card-subtitle class="text-center text-medium-emphasis">
+                Change of Name Management Information System
+              </v-card-subtitle>
             </div>
 
-            <v-btn
-              type="submit"
-              color="primary"
-              size="large"
-              block
-              :loading="loading"
-              :disabled="!valid || loading"
-            >
-              Login
-            </v-btn>
-          </v-form>
+            <v-form ref="formRef" v-model="valid" @submit.prevent="handleLogin">
+              <v-text-field
+                v-model="form.username"
+                label="Username"
+                prepend-inner-icon="mdi-account"
+                :rules="usernameRules"
+                required
+                variant="outlined"
+                density="comfortable"
+                autocomplete="username"
+                class="mb-3"
+              />
 
-          <v-alert
-            v-if="error"
-            type="error"
-            variant="tonal"
-            class="mt-4"
-            closable
-            @click:close="error = ''"
-          >
-            {{ error }}
-          </v-alert>
+              <v-text-field
+                v-model="form.password"
+                label="Password"
+                type="password"
+                prepend-inner-icon="mdi-lock"
+                :rules="passwordRules"
+                required
+                variant="outlined"
+                density="comfortable"
+                autocomplete="current-password"
+                class="mb-3"
+                @keyup.enter="handleLogin"
+              />
+
+              <div class="d-flex flex-wrap justify-space-between align-center gap-2 mb-4">
+                <v-checkbox
+                  v-model="rememberMe"
+                  label="Remember me"
+                  hide-details
+                  density="compact"
+                />
+                <router-link
+                  to="/forgot-password"
+                  class="text-decoration-none text-primary"
+                >
+                  Forgot Password?
+                </router-link>
+              </div>
+
+              <v-btn
+                type="submit"
+                color="primary"
+                size="large"
+                block
+                :loading="loading"
+                :disabled="!valid || loading"
+              >
+                Login
+              </v-btn>
+            </v-form>
+
+            <v-alert
+              v-if="error"
+              type="error"
+              variant="tonal"
+              class="mt-4"
+              closable
+              @click:close="error = ''"
+            >
+              {{ error }}
+            </v-alert>
+          </div>
         </v-card>
       </v-col>
     </v-row>

@@ -1,11 +1,21 @@
 <template>
-  <div>
-    <h1 class="text-h4 mb-6">Dashboard</h1>
+  <div class="gov-page">
+    <v-sheet class="gov-hero">
+      <div class="gov-hero__inner">
+        <div>
+          <div class="gov-hero__eyebrow">Operational overview</div>
+          <h1 class="text-h4 text-md-h3 font-weight-bold mb-2">Dashboard</h1>
+          <div class="text-body-2 text-medium-emphasis">
+            Monitor application volumes, review workload, and recent activity.
+          </div>
+        </div>
+      </div>
+    </v-sheet>
 
     <v-row>
       <!-- Statistics Cards -->
       <v-col cols="12" sm="6" md="3" v-for="stat in statistics" :key="stat.title">
-        <v-card>
+        <v-card class="gov-card h-100" elevation="2">
           <v-card-text>
             <div class="d-flex align-center">
               <v-avatar :color="stat.color" size="56" class="mr-4">
@@ -13,7 +23,7 @@
               </v-avatar>
               <div>
                 <div class="text-h6">{{ stat.value }}</div>
-                <div class="text-caption text-grey">{{ stat.title }}</div>
+                <div class="text-caption text-medium-emphasis">{{ stat.title }}</div>
               </div>
             </div>
           </v-card-text>
@@ -24,8 +34,13 @@
     <!-- Recent Applications -->
     <v-row class="mt-4">
       <v-col cols="12">
-        <v-card>
-          <v-card-title>Recent Applications</v-card-title>
+        <v-card class="gov-card" elevation="2">
+          <v-card-title class="gov-card__title">
+            <div>
+              <div class="text-h6">Recent Applications</div>
+              <div class="text-caption text-medium-emphasis">Latest submissions and status updates</div>
+            </div>
+          </v-card-title>
           <v-card-text>
             <v-data-table
               :headers="headers"
@@ -166,3 +181,9 @@ onMounted(() => {
   fetchRecentApplications()
 })
 </script>
+
+<style scoped>
+.h-100 {
+  height: 100%;
+}
+</style>

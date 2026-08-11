@@ -2,8 +2,10 @@
   <v-app>
     <v-navigation-drawer
       v-model="drawer"
-      :rail="rail"
-      permanent
+      :rail="mdAndUp ? rail : false"
+      :permanent="mdAndUp"
+      :temporary="!mdAndUp"
+      class="gov-drawer"
     >
       <v-list-item
         prepend-avatar="/logo.png"
@@ -80,14 +82,15 @@
 
     <v-app-bar
       color="primary"
-      :elevation="2"
+      :elevation="1"
+      class="gov-app-bar"
     >
       <v-app-bar-nav-icon
         icon="mdi-menu"
-        @click="drawer = !drawer"
+        @click="toggleDrawer"
       />
 
-      <v-toolbar-title>
+      <v-toolbar-title class="gov-app-bar__title">
         CNMIS - {{ authStore.userRole?.replace('_', ' ').toUpperCase() || 'Officer' }}
       </v-toolbar-title>
 
@@ -115,7 +118,7 @@
     </v-app-bar>
 
     <v-main>
-      <v-container fluid>
+      <v-container fluid class="pa-2 pa-sm-4 pa-md-6">
         <slot />
       </v-container>
     </v-main>
@@ -123,7 +126,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useDisplay } from 'vuetify'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
@@ -132,8 +136,9 @@ import Notifications from '@/components/Notifications.vue'
 const router = useRouter()
 const authStore = useAuthStore()
 const toast = useToast()
+const { mdAndUp } = useDisplay()
 
-const drawer = ref(true)
+const drawer = ref(false)
 const rail = ref(false)
 
 const institutionSubtitle = computed(() => {
@@ -142,9 +147,55 @@ const institutionSubtitle = computed(() => {
   return typeof inst === 'string' ? inst : inst.name
 })
 
+watch(
+  mdAndUp,
+  (isDesktop) => {
+    drawer.value = isDesktop
+    if (!isDesktop) {
+      rail.value = false
+    }
+  },
+  { immediate: true }
+)
+
+function toggleDrawer() {
+  if (mdAndUp.value) {
+    rail.value = !rail.value
+    return
+  }
+
+  drawer.value = !drawer.value
+}
+
 async function handleLogout() {
   await authStore.logout()
   toast.info('Logged out successfully')
 }
 </script>
 
+<style scoped>
+:deep(.gov-drawer) {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-right: 1px solid rgba(18, 56, 95, 0.12);
+}
+
+:deep(.gov-drawer .v-list-item) {
+  margin-inline: 10px;
+  border-radius: 14px;
+}
+
+:deep(.gov-drawer .v-list-item--active) {
+  background: rgba(18, 56, 95, 0.08);
+  color: #12385f;
+}
+
+:deep(.gov-app-bar) {
+  color: #ffffff;
+  background: linear-gradient(90deg, #12385f 0%, #0b2947 100%) !important;
+}
+
+.gov-app-bar__title {
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+</style>

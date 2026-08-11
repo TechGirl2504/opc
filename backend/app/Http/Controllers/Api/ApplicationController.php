@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreApplicationRequest;
+use App\Http\Requests\SendBackToDataEntryRequest;
 use App\Http\Requests\UpdateApplicationRequest;
 use App\Models\Application;
 use App\Services\ApplicationService;
 use App\Services\DocumentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 
 class ApplicationController extends Controller
 {
@@ -20,6 +22,20 @@ class ApplicationController extends Controller
     {
         $this->applicationService = $applicationService;
         $this->documentService = $documentService;
+    }
+
+    private function forbiddenApplicationResponse(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'error' => [
+                'code' => 'FORBIDDEN',
+                'message' => 'You do not have permission to access this application',
+            ],
+            'meta' => [
+                'timestamp' => now()->toIso8601String(),
+            ],
+        ], 403);
     }
 
     /**
@@ -120,11 +136,15 @@ class ApplicationController extends Controller
                 ],
             ], 201);
         } catch (\Exception $e) {
+            Log::error('Failed to create application', [
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'CREATION_FAILED',
-                    'message' => 'Failed to create application: ' . $e->getMessage(),
+                    'message' => 'Failed to create application',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -136,7 +156,7 @@ class ApplicationController extends Controller
     /**
      * Display the specified application
      */
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
         try {
             $application = Application::with([
@@ -155,6 +175,9 @@ class ApplicationController extends Controller
                 'decisions.decisionValue',
                 'decisions.decidedBy',
             ])->findOrFail($id);
+            if (!$this->applicationService->canAccessApplication($application, $request->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
 
             return response()->json([
                 'success' => true,
@@ -195,6 +218,9 @@ class ApplicationController extends Controller
     {
         try {
             $application = Application::findOrFail($id);
+            if (!$this->applicationService->canAccessApplication($application, $request->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
             $application = $this->applicationService->updateApplication(
                 $application,
                 $request->validated(),
@@ -221,11 +247,16 @@ class ApplicationController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            Log::error('Failed to update application', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'UPDATE_FAILED',
-                    'message' => 'Failed to update application: ' . $e->getMessage(),
+                    'message' => 'Failed to update application',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -241,6 +272,9 @@ class ApplicationController extends Controller
     {
         try {
             $application = Application::findOrFail($id);
+            if (!$this->applicationService->canDeleteApplication($application, request()->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
             $application->delete();
 
             return response()->json([
@@ -276,6 +310,61 @@ class ApplicationController extends Controller
     }
 
     /**
+     * Send a pending application back to data entry for corrections.
+     */
+    public function sendBackToDataEntry(SendBackToDataEntryRequest $request, string $id): JsonResponse
+    {
+        try {
+            $application = Application::findOrFail($id);
+            if (!$this->applicationService->canAccessApplication($application, $request->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
+
+            $application = $this->applicationService->sendBackToDataEntry(
+                $application,
+                $request->get('reason'),
+                $request->user()
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $application,
+                'message' => 'Application sent back to data entry successfully',
+                'meta' => [
+                    'timestamp' => now()->toIso8601String(),
+                ],
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'NOT_FOUND',
+                    'message' => 'Application not found',
+                ],
+                'meta' => [
+                    'timestamp' => now()->toIso8601String(),
+                ],
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to send back application to data entry', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'SEND_BACK_FAILED',
+                    'message' => 'Failed to send back application to data entry',
+                ],
+                'meta' => [
+                    'timestamp' => now()->toIso8601String(),
+                ],
+            ], 400);
+        }
+    }
+
+    /**
      * Assign application to police officer
      */
     public function assignPolice(Request $request, string $id): JsonResponse
@@ -286,6 +375,9 @@ class ApplicationController extends Controller
 
         try {
             $application = Application::findOrFail($id);
+            if (!$this->applicationService->canAccessApplication($application, $request->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
             $application = $this->applicationService->assignToPolice(
                 $application,
                 $request->police_officer_id,
@@ -312,11 +404,16 @@ class ApplicationController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            Log::error('Failed to assign application to police', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'ASSIGNMENT_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to assign application to police officer',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -336,6 +433,9 @@ class ApplicationController extends Controller
 
         try {
             $application = Application::findOrFail($id);
+            if (!$this->applicationService->canAccessApplication($application, $request->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
             $application = $this->applicationService->assignToNis(
                 $application,
                 $request->nis_officer_id,
@@ -362,11 +462,16 @@ class ApplicationController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            Log::error('Failed to assign application to NIS', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'ASSIGNMENT_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to assign application to NIS officer',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -382,6 +487,9 @@ class ApplicationController extends Controller
     {
         try {
             $application = Application::findOrFail($id);
+            if (!$this->applicationService->canAccessApplication($application, request()->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
             $history = $this->applicationService->getStatusHistory($application);
 
             return response()->json([
@@ -426,7 +534,14 @@ class ApplicationController extends Controller
                 'reason' => 'required|string|min:10|max:5000',
             ]);
 
+            if (!$request->user()?->hasRole('opc_approver')) {
+                return $this->forbiddenApplicationResponse();
+            }
+
             $application = Application::findOrFail($id);
+            if (!$this->applicationService->canAccessApplication($application, $request->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
             $application = $this->applicationService->sendBackToAdmin($application, $request->get('reason'), $request->user());
 
             return response()->json([
@@ -461,11 +576,16 @@ class ApplicationController extends Controller
                 ],
             ], 422);
         } catch (\Exception $e) {
+            Log::error('Failed to send back application to admin', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'SEND_BACK_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to send back application to admin',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -481,22 +601,24 @@ class ApplicationController extends Controller
     {
         try {
             $request->validate([
-                'action' => 'required|string|in:send_to_police,send_to_nis,allow_editing',
+                'action' => 'required|string|in:send_to_police,send_to_nis',
                 'reason' => 'nullable|string|max:5000',
             ]);
 
             $application = Application::findOrFail($id);
+            if (!$this->applicationService->canAccessApplication($application, $request->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
             $application = $this->applicationService->handleApproverSendBack(
                 $application,
                 $request->get('action'),
-                $request->get('reason'),
-                $request->user()
+                $request->user(),
+                $request->get('reason')
             );
 
             $actionMessages = [
                 'send_to_police' => 'Application sent back to police vetting',
                 'send_to_nis' => 'Application sent back to NIS vetting',
-                'allow_editing' => 'Application is now available for editing',
             ];
 
             return response()->json([
@@ -531,11 +653,16 @@ class ApplicationController extends Controller
                 ],
             ], 422);
         } catch (\Exception $e) {
+            Log::error('Failed to handle approver send back', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'HANDLE_SEND_BACK_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to process approver send-back action',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -551,6 +678,9 @@ class ApplicationController extends Controller
     {
         try {
             $application = Application::findOrFail($id);
+            if (!$this->applicationService->canAccessApplication($application, $request->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
             $application = $this->applicationService->forwardToApproval($application, $request->user());
 
             return response()->json([
@@ -573,11 +703,16 @@ class ApplicationController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            Log::error('Failed to forward application to approval', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'FORWARD_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to forward application to approval',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),

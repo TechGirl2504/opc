@@ -33,6 +33,21 @@ class StoreApplicationRequest extends FormRequest
                 'string',
                 'regex:/^[A-Z0-9]{8}$/',
             ],
+            'district' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+            'traditional_authority' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+            'village' => [
+                'required',
+                'string',
+                'max:255',
+            ],
             'current_name' => [
                 'nullable',
                 'string',
@@ -54,11 +69,10 @@ class StoreApplicationRequest extends FormRequest
             'documents' => [
                 'nullable',
                 'array',
-                'max:5',
             ],
             'documents.*' => [
                 'file',
-                'max:10240', // 10MB in kilobytes
+                'max:51200', // 50MB in kilobytes
                 'mimes:pdf,jpg,jpeg,png',
             ],
         ];
@@ -75,6 +89,12 @@ class StoreApplicationRequest extends FormRequest
             'full_name.max' => 'Full name must not exceed 255 characters.',
             'full_name.regex' => 'Full name must contain only alphabetic characters and spaces.',
             'national_id.regex' => 'National ID must be exactly 8 characters with uppercase letters and numbers only (e.g., ABC12345).',
+            'district.required' => 'District is required.',
+            'district.max' => 'District must not exceed 255 characters.',
+            'traditional_authority.required' => 'T/A is required.',
+            'traditional_authority.max' => 'T/A must not exceed 255 characters.',
+            'village.required' => 'Village is required.',
+            'village.max' => 'Village must not exceed 255 characters.',
             'requested_name.required' => 'Requested name is required.',
             'requested_name.min' => 'Requested name must be at least 2 characters.',
             'requested_name.max' => 'Requested name must not exceed 255 characters.',
@@ -82,8 +102,7 @@ class StoreApplicationRequest extends FormRequest
             'reason.required' => 'Reason for change is required.',
             'reason.min' => 'Reason must be at least 10 characters.',
             'reason.max' => 'Reason must not exceed 5000 characters.',
-            'documents.max' => 'Maximum 5 documents allowed per application.',
-            'documents.*.max' => 'Each document must not exceed 10MB.',
+            'documents.*.max' => 'Each document must not exceed 50MB.',
             'documents.*.mimes' => 'Documents must be PDF, JPG, JPEG, or PNG files.',
         ];
     }

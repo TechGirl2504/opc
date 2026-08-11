@@ -63,7 +63,7 @@ class UpdateVettingRequest extends FormRequest
             'findings' => 'sometimes|nullable|string|max:5000',
             'recommendation_id' => 'sometimes|nullable|integer|exists:decision_values,id',
             'vetting_date' => 'sometimes|nullable|date',
-            'document' => 'sometimes|nullable|file|max:10240|mimes:pdf,jpg,jpeg,png',
+            'document' => 'sometimes|nullable|file|max:51200|mimes:pdf,jpg,jpeg,png',
         ];
     }
 
@@ -73,7 +73,7 @@ class UpdateVettingRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'document.max' => 'Vetting report must not exceed 10MB.',
+            'document.max' => 'Vetting report must not exceed 50MB.',
             'document.mimes' => 'Vetting report must be PDF, JPG, JPEG, or PNG file.',
             'recommendation_id.exists' => 'Selected recommendation is invalid.',
         ];

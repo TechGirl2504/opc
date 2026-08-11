@@ -197,14 +197,14 @@ class ReportController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve application reports: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            \Log::error('Failed to retrieve application reports', [
+                'error' => $e->getMessage(),
             ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'SERVER_ERROR',
-                    'message' => 'Failed to retrieve application reports: ' . $e->getMessage(),
+                    'message' => 'Failed to retrieve application reports',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -297,6 +297,9 @@ class ReportController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to retrieve vetting statistics', [
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -342,6 +345,9 @@ class ReportController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to retrieve audit logs', [
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -420,11 +426,14 @@ class ReportController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to export data', [
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'EXPORT_FAILED',
-                    'message' => 'Failed to export data: ' . $e->getMessage(),
+                    'message' => 'Failed to export data',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),

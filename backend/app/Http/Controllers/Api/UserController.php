@@ -111,9 +111,8 @@ class UserController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            Log::error('Failed to retrieve users: ' . $e->getMessage(), [
-                'exception' => $e,
-                'trace' => $e->getTraceAsString(),
+            Log::error('Failed to retrieve users', [
+                'error' => $e->getMessage(),
                 'request_params' => $request->all()
             ]);
             
@@ -121,7 +120,7 @@ class UserController extends Controller
                 'success' => false,
                 'error' => [
                     'code' => 'SERVER_ERROR',
-                    'message' => 'Failed to retrieve users: ' . $e->getMessage(),
+                    'message' => 'Failed to retrieve users',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -165,11 +164,15 @@ class UserController extends Controller
                 ],
             ], 201);
         } catch (\Exception $e) {
+            Log::error('Failed to create user', [
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'CREATION_FAILED',
-                    'message' => 'Failed to create user: ' . $e->getMessage(),
+                    'message' => 'Failed to create user',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -270,11 +273,16 @@ class UserController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            Log::error('Failed to update user', [
+                'user_id' => $request->user()?->id,
+                'target_user_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'UPDATE_FAILED',
-                    'message' => 'Failed to update user: ' . $e->getMessage(),
+                    'message' => 'Failed to update user',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),

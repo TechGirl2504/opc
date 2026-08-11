@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
+import '@/styles/theme.css'
 
 // Vuetify
 import 'vuetify/styles'
@@ -21,17 +22,22 @@ const vuetify = createVuetify({
   components,
   directives,
   theme: {
-    defaultTheme: 'light',
+    defaultTheme: 'governmentLight',
     themes: {
-      light: {
+      governmentLight: {
+        dark: false,
         colors: {
-          primary: '#1976d2',
-          secondary: '#424242',
-          accent: '#82B1FF',
-          error: '#FF5252',
-          info: '#2196F3',
-          success: '#4CAF50',
-          warning: '#FFC107'
+          primary: '#12385f',
+          secondary: '#4a5b6c',
+          accent: '#0f766e',
+          surface: '#f8fafc',
+          background: '#eef3f8',
+          'surface-variant': '#dbe4ef',
+          'on-surface-variant': '#334155',
+          error: '#b42318',
+          info: '#1d4ed8',
+          success: '#166534',
+          warning: '#a16207'
         }
       }
     }

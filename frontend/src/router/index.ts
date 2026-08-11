@@ -153,8 +153,13 @@ router.beforeEach(async (to, from, next) => {
   }
 
   // Redirect authenticated users away from auth pages
-  if (to.meta.requiresGuest && authStore.isAuthenticated) {
-    // Only redirect if the token is still valid (prevents dashboard flash on stale tokens).
+  if (to.meta.requiresGuest) {
+    if (authStore.user) {
+      next({ name: 'Dashboard' })
+      return
+    }
+
+    // Hydrate a session-backed login if one exists.
     const ok = await authStore.ensureUserLoaded()
     if (ok) {
       next({ name: 'Dashboard' })

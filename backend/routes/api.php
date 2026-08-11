@@ -18,9 +18,9 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
 
     // Public routes (authentication)
-    Route::post('/auth/login', [AuthController::class, 'login']);
-    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
-    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+    Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
+    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:password-reset');
+    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:password-reset');
 
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
@@ -35,8 +35,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/applications', [ApplicationController::class, 'index']);
         Route::post('/applications', [ApplicationController::class, 'store'])->middleware('permission:create applications');
         Route::get('/applications/{id}', [ApplicationController::class, 'show']);
-        Route::put('/applications/{id}', [ApplicationController::class, 'update'])->middleware('permission:edit applications');
+        Route::put('/applications/{id}', [ApplicationController::class, 'update'])->middleware('auth:sanctum');
         Route::delete('/applications/{id}', [ApplicationController::class, 'destroy'])->middleware('permission:delete applications');
+        Route::post('/applications/{id}/send-back-to-data-entry', [ApplicationController::class, 'sendBackToDataEntry'])->middleware('permission:manage application statuses');
         Route::post('/applications/{id}/assign-police', [ApplicationController::class, 'assignPolice'])->middleware('permission:assign applications');
         Route::post('/applications/{id}/assign-nis', [ApplicationController::class, 'assignNis'])->middleware('permission:assign applications');
         Route::post('/applications/{id}/forward-to-approval', [ApplicationController::class, 'forwardToApproval'])->middleware('permission:approve applications');

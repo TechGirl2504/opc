@@ -142,6 +142,7 @@ import { applicationsApi, type Application } from '@/api/applications'
 import { adminApi } from '@/api/admin'
 import { useToast } from 'vue-toastification'
 import { format } from 'date-fns'
+import { canStartPoliceVetting } from '@/utils/vettingWorkflow'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -211,9 +212,7 @@ function formatDate(date: string) {
 }
 
 function canVet(item: Application): boolean {
-  // Can vet if assigned to this police officer and not yet completed
-  return item.assigned_police_officer?.id === authStore.user?.id &&
-         !item.police_vetting_completed_at
+  return canStartPoliceVetting(item, authStore.user?.id)
 }
 
 function startVetting(item: Application) {
@@ -286,4 +285,3 @@ onMounted(() => {
   loadStatusOptions()
 })
 </script>
-

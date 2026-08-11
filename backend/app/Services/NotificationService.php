@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Notification;
 use App\Models\User;
 use App\Models\Application;
-use Illuminate\Support\Facades\Log;
 
 class NotificationService
 {
@@ -31,6 +30,54 @@ class NotificationService
     }
 
     /**
+     * Notify every user with a given role.
+     *
+     * @param array<int, string> $roles
+     */
+    private function notifyRoleUsers(
+        array $roles,
+        string $type,
+        string $title,
+        string $message,
+        Application $application,
+        ?int $excludeUserId = null
+    ): void {
+        $query = User::whereHas('roles', function ($query) use ($roles) {
+            $query->whereIn('name', $roles);
+        });
+
+        if ($excludeUserId !== null) {
+            $query->where('id', '!=', $excludeUserId);
+        }
+
+        foreach ($query->get() as $user) {
+            $this->createNotification(
+                $user,
+                $type,
+                $title,
+                $message,
+                Application::class,
+                $application->id
+            );
+        }
+    }
+
+    /**
+     * Notify admins that a new or resubmitted application has been received.
+     */
+    public function notifyApplicationReceivedByAdmins(Application $application, ?User $initiator = null): void
+    {
+        $this->notifyRoleUsers(
+            ['admin'],
+            'application_received',
+            'Application Received',
+            "Application {$application->application_number} has been received and is awaiting review.",
+            $application,
+            $initiator?->id
+        );
+    }
+
+    /**
      * Notify user when application is assigned
      */
     public function notifyApplicationAssigned(Application $application, User $assignedUser, string $vettingType): void
@@ -38,8 +85,8 @@ class NotificationService
         $this->createNotification(
             $assignedUser,
             'application_assigned',
-            'Application Assigned',
-            "Application {$application->application_number} has been assigned to you for {$vettingType} vetting.",
+            'Application Received for Vetting',
+            "Application {$application->application_number} has been received and assigned to you for {$vettingType} vetting.",
             Application::class,
             $application->id
         );
@@ -64,86 +111,31 @@ class NotificationService
     }
 
     /**
-     * Notify OPC when vetting is completed
+     * Notify admins when vetting is completed and the file returns to OPC review.
      */
     public function notifyVettingCompleted(Application $application, string $vettingType): void
     {
-        $opcUsers = User::whereHas('roles', function($query) {
-            $query->whereIn('name', ['opc_data_entry', 'opc_approver']);
-        })->get();
-
-        foreach ($opcUsers as $user) {
-            $this->createNotification(
-                $user,
-                'vetting_completed',
-                ucfirst($vettingType) . ' Vetting Completed',
-                "{$vettingType} vetting has been completed for application {$application->application_number}.",
-                Application::class,
-                $application->id
-            );
-        }
+        $this->notifyRoleUsers(
+            ['admin'],
+            'vetting_completed',
+            ucfirst($vettingType) . ' Vetting Completed',
+            ucfirst($vettingType) . " vetting has been completed for application {$application->application_number} and returned to OPC review.",
+            $application
+        );
     }
 
     /**
-     * Notify OPC approver when approval is required
+     * Notify OPC approvers when approval is required.
      */
     public function notifyApprovalRequired(Application $application): void
     {
-        $approvers = User::whereHas('roles', function($query) {
-            $query->where('name', 'opc_approver');
-        })->get();
-
-        foreach ($approvers as $user) {
-            $this->createNotification(
-                $user,
-                'approval_required',
-                'Approval Required',
-                "Application {$application->application_number} is ready for final approval. Both vetting processes are complete.",
-                Application::class,
-                $application->id
-            );
-        }
-    }
-
-    /**
-     * Notify when application status changes
-     */
-    public function notifyStatusChanged(Application $application, string $oldStatus, string $newStatus): void
-    {
-        // Notify application creator
-        if ($application->createdBy) {
-            $this->createNotification(
-                $application->createdBy,
-                'application_status_changed',
-                'Application Status Changed',
-                "Application {$application->application_number} status has changed from {$oldStatus} to {$newStatus}.",
-                Application::class,
-                $application->id
-            );
-        }
-
-        // Notify assigned officers if applicable
-        if ($application->assignedPoliceOfficer) {
-            $this->createNotification(
-                $application->assignedPoliceOfficer,
-                'application_status_changed',
-                'Application Status Changed',
-                "Application {$application->application_number} status has changed to {$newStatus}.",
-                Application::class,
-                $application->id
-            );
-        }
-
-        if ($application->assignedNisOfficer) {
-            $this->createNotification(
-                $application->assignedNisOfficer,
-                'application_status_changed',
-                'Application Status Changed',
-                "Application {$application->application_number} status has changed to {$newStatus}.",
-                Application::class,
-                $application->id
-            );
-        }
+        $this->notifyRoleUsers(
+            ['opc_approver'],
+            'approval_required',
+            'Application Ready for Approval',
+            "Application {$application->application_number} is ready for final approval. Both vetting processes are complete.",
+            $application
+        );
     }
 
     /**
@@ -262,20 +254,33 @@ class NotificationService
      */
     public function notifyApplicationSentBackToAdmin(Application $application, User $approver, string $reason): void
     {
-        $admins = User::whereHas('roles', function($query) {
-            $query->where('name', 'admin');
-        })->get();
+        $this->notifyRoleUsers(
+            ['admin'],
+            'application_sent_back_to_admin',
+            'Application Sent Back for Review',
+            "Application {$application->application_number} has been sent back by approver {$approver->username} for review. Reason: {$reason}",
+            $application,
+            $approver->id
+        );
+    }
 
-        foreach ($admins as $admin) {
-            $this->createNotification(
-                $admin,
-                'application_sent_back_to_admin',
-                'Application Sent Back for Review',
-                "Application {$application->application_number} has been sent back by approver {$approver->username} for review. Reason: {$reason}",
-                Application::class,
-                $application->id
-            );
+    /**
+     * Notify the application creator when a pending record is sent back for correction.
+     */
+    public function notifyApplicationSentBackToDataEntry(Application $application, User $reviewer, string $reason): void
+    {
+        if (!$application->createdBy) {
+            return;
         }
+
+        $this->createNotification(
+            $application->createdBy,
+            'application_sent_back_to_data_entry',
+            'Application Returned for Correction',
+            "Application {$application->application_number} was returned by {$reviewer->username} for correction. Reason: {$reason}",
+            Application::class,
+            $application->id
+        );
     }
 
     /**
@@ -294,4 +299,3 @@ class NotificationService
         );
     }
 }
-

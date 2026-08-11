@@ -1,10 +1,21 @@
 <template>
-  <v-container>
+  <v-container class="gov-page">
     <v-row>
       <v-col cols="12">
-        <h1 class="text-h4 mb-4">Admin Panel</h1>
+        <v-sheet class="gov-hero">
+          <div class="gov-hero__inner">
+            <div>
+              <div class="gov-hero__eyebrow">Administration</div>
+              <h1 class="text-h4 text-md-h3 font-weight-bold mb-2">Admin Panel</h1>
+              <div class="text-body-2 text-medium-emphasis">
+                Manage users, workflows, and master data from one controlled interface.
+              </div>
+            </div>
+          </div>
+        </v-sheet>
 
-        <v-tabs v-model="activeTab" bg-color="primary">
+        <v-card class="gov-card" elevation="2">
+          <v-tabs v-model="activeTab" bg-color="primary" slider-color="accent" class="gov-tabs" show-arrows>
           <v-tab value="users">Users</v-tab>
           <v-tab value="institutions">Institutions</v-tab>
           <v-tab value="statuses">Application Statuses</v-tab>
@@ -13,7 +24,7 @@
           <v-tab value="roles">Roles & Permissions</v-tab>
         </v-tabs>
 
-        <v-window v-model="activeTab">
+        <v-window v-model="activeTab" class="pa-4">
           <!-- Users Tab -->
           <v-window-item value="users">
             <UsersManagement />
@@ -80,10 +91,19 @@
             <RolesManagement />
           </v-window-item>
         </v-window>
+        </v-card>
       </v-col>
     </v-row>
   </v-container>
 </template>
+
+<style scoped>
+.gov-tabs {
+  border-bottom: 1px solid rgba(18, 56, 95, 0.08);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+</style>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'

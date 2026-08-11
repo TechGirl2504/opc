@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreVettingRequest;
 use App\Http\Requests\UpdateVettingRequest;
 use App\Models\Application;
+use App\Services\ApplicationService;
 use App\Services\VettingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,19 +14,38 @@ use Illuminate\Http\Request;
 class VettingController extends Controller
 {
     protected VettingService $vettingService;
+    protected ApplicationService $applicationService;
 
-    public function __construct(VettingService $vettingService)
+    public function __construct(VettingService $vettingService, ApplicationService $applicationService)
     {
         $this->vettingService = $vettingService;
+        $this->applicationService = $applicationService;
+    }
+
+    private function forbiddenApplicationResponse(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'error' => [
+                'code' => 'UNAUTHORIZED',
+                'message' => 'You do not have permission to access this application',
+            ],
+            'meta' => [
+                'timestamp' => now()->toIso8601String(),
+            ],
+        ], 403);
     }
 
     /**
      * Get police vetting record for application
      */
-    public function getPoliceVetting(string $id): JsonResponse
+    public function getPoliceVetting(Request $request, string $id): JsonResponse
     {
         try {
             $application = Application::findOrFail($id);
+            if (!$this->applicationService->canAccessApplication($application, $request->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
             $vetting = $this->vettingService->getPoliceVetting($application);
 
             if (!$vetting) {
@@ -107,11 +127,16 @@ class VettingController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            \Log::error('Failed to submit police vetting', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'SUBMISSION_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to submit police vetting',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -170,11 +195,16 @@ class VettingController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            \Log::error('Failed to update police vetting', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'UPDATE_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to update police vetting',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -186,10 +216,13 @@ class VettingController extends Controller
     /**
      * Get NIS vetting record for application
      */
-    public function getNisVetting(string $id): JsonResponse
+    public function getNisVetting(Request $request, string $id): JsonResponse
     {
         try {
             $application = Application::findOrFail($id);
+            if (!$this->applicationService->canAccessApplication($application, $request->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
             $vetting = $this->vettingService->getNisVetting($application);
 
             if (!$vetting) {
@@ -271,11 +304,16 @@ class VettingController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            \Log::error('Failed to submit NIS vetting', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'SUBMISSION_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to submit NIS vetting',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -334,11 +372,16 @@ class VettingController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            \Log::error('Failed to update NIS vetting', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'UPDATE_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to update NIS vetting',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -383,11 +426,16 @@ class VettingController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            \Log::error('Failed to save police vetting draft', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'DRAFT_SAVE_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to save police vetting draft',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -432,11 +480,16 @@ class VettingController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            \Log::error('Failed to complete police vetting', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'COMPLETION_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to complete police vetting',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -481,11 +534,16 @@ class VettingController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            \Log::error('Failed to save NIS vetting draft', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'DRAFT_SAVE_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to save NIS vetting draft',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -530,11 +588,16 @@ class VettingController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            \Log::error('Failed to complete NIS vetting', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'COMPLETION_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to complete NIS vetting',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -576,11 +639,16 @@ class VettingController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            \Log::error('Failed to send back vetting', [
+                'vetting_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'SEND_BACK_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to send back vetting',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),

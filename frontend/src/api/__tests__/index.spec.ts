@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-type AxiosCreateConfig = { baseURL?: string; headers?: Record<string, string>; withCredentials?: boolean }
+type AxiosCreateConfig = { baseURL?: string; headers?: Record<string, string>; withCredentials?: boolean; withXSRFToken?: boolean }
 type AxiosRequestConfig = { headers?: Record<string, string> }
 
 let requestInterceptor: ((config: AxiosRequestConfig) => AxiosRequestConfig) | undefined
@@ -27,9 +27,9 @@ vi.mock('axios', () => ({
   },
 }))
 
-function installMockLocalStorage() {
+function installMockStorage() {
   let store: Record<string, string> = {}
-  const localStorageMock = {
+  const storageMock = {
     getItem: (key: string) => (Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null),
     setItem: (key: string, value: string) => {
       store[key] = String(value)
@@ -42,8 +42,8 @@ function installMockLocalStorage() {
     },
   }
 
-  Object.defineProperty(window, 'localStorage', {
-    value: localStorageMock,
+  Object.defineProperty(window, 'sessionStorage', {
+    value: storageMock,
     configurable: true,
   })
 }
@@ -51,8 +51,8 @@ function installMockLocalStorage() {
 beforeEach(() => {
   createMock.mockClear()
   requestInterceptor = undefined
-  installMockLocalStorage()
-  window.localStorage.clear()
+  installMockStorage()
+  window.sessionStorage.clear()
   ;(window as any).__ENV__ = undefined
   vi.resetModules()
 })
@@ -67,20 +67,24 @@ describe('api client', () => {
     expect(createMock.mock.calls[0]?.[0]?.baseURL).toBe('https://example.test/api/v1')
   })
 
-  it('falls back to localhost base URL when unset', async () => {
+  it('falls back to same-origin api base URL when unset', async () => {
     await import('@/api')
 
     expect(createMock).toHaveBeenCalledTimes(1)
-    expect(createMock.mock.calls[0]?.[0]?.baseURL).toBe('http://localhost:8000/api/v1')
+    expect(createMock.mock.calls[0]?.[0]?.baseURL).toBe('/api/v1')
   })
 
-  it('adds Authorization header when token exists', async () => {
-    window.localStorage.setItem('auth_token', 'token-123')
+  it('enables XSRF forwarding for cross-origin SPA requests', async () => {
+    await import('@/api')
+
+    expect(createMock.mock.calls[0]?.[0]?.withXSRFToken).toBe(true)
+  })
+
+  it('does not inject a bearer token header', async () => {
     await import('@/api')
 
     expect(requestInterceptor).toBeTypeOf('function')
     const config = requestInterceptor?.({ headers: {} as Record<string, string> })
-    expect(config?.headers?.Authorization).toBe('Bearer token-123')
+    expect(config?.headers?.Authorization).toBeUndefined()
   })
 })
-

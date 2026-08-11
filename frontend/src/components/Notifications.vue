@@ -14,7 +14,7 @@
         ></v-btn>
       </v-badge>
     </template>
-    <v-card min-width="350" max-height="500">
+    <v-card class="notifications-menu" max-height="500">
       <v-card-title class="d-flex justify-space-between align-center">
         <span>Notifications</span>
         <v-btn
@@ -184,8 +184,11 @@ function handleNotificationClick(notification: Notification) {
     markAsRead(notification.id)
   }
   
-  // Navigate based on notification type
-  const appId = (notification.data as any)?.application_id
+  // Navigate to the application referenced by the notification.
+  const appId =
+    (notification.data as any)?.application_id ??
+    notification.related_model_id
+
   if (typeof appId === 'number' || typeof appId === 'string') {
     router.push({ name: 'ApplicationDetail', params: { id: String(appId) } })
   }
@@ -217,8 +220,23 @@ watch(
 </script>
 
 <style scoped>
-.v-list-item {
-  cursor: pointer;
+.notifications-menu {
+  width: min(380px, calc(100vw - 24px));
+  min-width: min(350px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
 }
 </style>
 
+<style scoped>
+.v-list-item {
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .notifications-menu {
+    width: calc(100vw - 16px);
+    min-width: 0;
+    max-width: calc(100vw - 16px);
+  }
+}
+</style>

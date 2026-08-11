@@ -6,6 +6,8 @@ export interface Notification {
   type: string
   title: string
   message: string
+  related_model_type?: string | null
+  related_model_id?: number | string | null
   data?: {
     application_id?: number | string
     [key: string]: unknown
@@ -35,4 +37,3 @@ export const notificationsApi = {
   markAllAsRead: (): Promise<AxiosResponse> =>
     api.post('/notifications/read-all')
 }
-

@@ -26,7 +26,8 @@ class WorkflowService
 
         // Define valid transitions
         $validTransitions = [
-            'pending' => ['police_vetting'],
+            'pending' => ['returned_to_data_entry', 'police_vetting'],
+            'returned_to_data_entry' => ['pending'],
             'police_vetting' => ['police_completed'],
             'police_completed' => ['opc_review'],
             'opc_review' => ['nis_vetting', 'police_vetting', 'pending_approval'], // Allow going back to vetting when sent back, or forward to approval
@@ -105,7 +106,8 @@ class WorkflowService
         }
 
         $validTransitions = [
-            'pending' => ['police_vetting'],
+            'pending' => ['returned_to_data_entry', 'police_vetting'],
+            'returned_to_data_entry' => ['pending'],
             'police_vetting' => ['police_completed'],
             'police_completed' => ['opc_review'],
             'opc_review' => ['nis_vetting', 'police_vetting', 'pending_approval'], // Allow going back to vetting when sent back, or forward to approval
@@ -125,4 +127,3 @@ class WorkflowService
             ->toArray();
     }
 }
-

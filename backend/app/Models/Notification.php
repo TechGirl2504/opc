@@ -9,6 +9,10 @@ class Notification extends Model
 {
     use HasFactory;
 
+    protected $appends = [
+        'data',
+    ];
+
     protected $fillable = [
         'user_id',
         'type',
@@ -29,5 +33,16 @@ class Notification extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function getDataAttribute(): array
+    {
+        if ($this->related_model_type === Application::class && $this->related_model_id) {
+            return [
+                'application_id' => $this->related_model_id,
+            ];
+        }
+
+        return [];
     }
 }
