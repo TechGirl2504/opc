@@ -70,7 +70,7 @@
       </v-btn>
     </div>
     <div v-else>
-      <v-alert type="info" variant="tonal">
+      <v-alert color="primary" variant="tonal" class="gov-empty-alert">
         NIS vetting not yet submitted
       </v-alert>
       <v-btn
@@ -287,4 +287,3 @@ onUnmounted(() => {
   }
 })
 </script>
-

@@ -19,14 +19,17 @@ export default defineConfig({
     vue(),
     vueDevTools(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
         name: 'CNMIS - Change of Name Management',
         short_name: 'CNMIS',
         description: 'Change of Name Management Information System for OPC',
-        theme_color: '#1976d2',
-        background_color: '#ffffff',
+        theme_color: '#12385f',
+        background_color: '#eef3f8',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/cnmis/',
@@ -46,36 +49,8 @@ export default defineConfig({
           }
         ]
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          {
-            // Only cache API requests when they are SAME-ORIGIN.
-            // In local development / preview, the API is typically cross-origin (localhost:8000),
-            // and trying to cache cross-origin API calls can cause noisy `no-response` Workbox errors.
-            urlPattern: ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/api/'),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 // 24 hours
-              },
-              networkTimeoutSeconds: 10
-            }
-          },
-          {
-            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'images-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-              }
-            }
-          }
-        ]
       },
       // Disable SW generation in dev to avoid Workbox glob warnings.
       devOptions: {
@@ -95,6 +70,12 @@ export default defineConfig({
     strictPort: false,
     proxy: {
       '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+        ws: true
+      },
+      '/sanctum': {
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,

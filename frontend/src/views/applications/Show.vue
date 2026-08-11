@@ -1,63 +1,107 @@
 <template>
-  <div v-if="application">
-    <div class="d-flex justify-space-between align-center mb-4">
-      <div>
-        <h1 class="text-h4">{{ application.application_number }}</h1>
-        <v-chip
-          :color="getStatusColor(application.status?.code)"
-          size="small"
-          class="mt-2"
-        >
-          {{ application.status?.name }}
-        </v-chip>
+  <div v-if="application" class="application-detail-page">
+    <v-sheet class="detail-hero mb-6" rounded="xl">
+      <div class="detail-hero__inner">
+        <div class="detail-hero__copy">
+          <div class="detail-eyebrow">Application case file</div>
+          <div class="d-flex flex-wrap align-center ga-3">
+            <h1 class="text-h4 text-md-h3 font-weight-bold mb-0">
+              {{ application.application_number }}
+            </h1>
+            <v-chip
+              :color="getStatusColor(application.status?.code)"
+              variant="flat"
+              size="small"
+            >
+              {{ application.status?.name }}
+            </v-chip>
+          </div>
+          <div class="detail-hero__meta">
+            <v-chip variant="tonal" size="small" prepend-icon="mdi-account">
+              {{ application.created_by?.username }}
+            </v-chip>
+            <v-chip variant="tonal" size="small" prepend-icon="mdi-calendar-outline">
+              {{ formatDate(application.created_at) }}
+            </v-chip>
+            <v-chip variant="tonal" size="small" prepend-icon="mdi-map-marker">
+              {{ application.district }} · {{ application.traditional_authority }} · {{ application.village }}
+            </v-chip>
+          </div>
+        </div>
+
+        <div class="detail-hero__actions">
+          <v-btn
+            class="detail-hero__button"
+            variant="tonal"
+            prepend-icon="mdi-arrow-left"
+            @click="$router.push({ name: 'Applications' })"
+          >
+            Back to List
+          </v-btn>
+        </div>
       </div>
-      <v-btn
-        variant="text"
-        prepend-icon="mdi-arrow-left"
-        @click="$router.push({ name: 'Applications' })"
-      >
-        Back to List
-      </v-btn>
-    </div>
+    </v-sheet>
 
     <v-row>
       <!-- Application Details -->
       <v-col cols="12" md="8">
-        <v-card class="mb-4">
-          <v-card-title>Application Information</v-card-title>
+        <v-card class="detail-card mb-4" elevation="2">
+          <v-card-title class="detail-card__title">
+            <div>
+              <div class="text-h6">Application Information</div>
+              <div class="text-caption text-medium-emphasis">Identity and location details for this file</div>
+            </div>
+          </v-card-title>
           <v-card-text>
-            <v-row>
-              <v-col cols="12" sm="6">
-                <div class="text-caption text-grey">Full Name</div>
-                <div class="text-body-1">{{ application.full_name }}</div>
-              </v-col>
-              <v-col cols="12" sm="6">
-                <div class="text-caption text-grey">National ID</div>
-                <div class="text-body-1">{{ application.national_id }}</div>
-              </v-col>
-              <v-col cols="12" sm="6">
-                <div class="text-caption text-grey">Current Name</div>
-                <div class="text-body-1">{{ application.current_name }}</div>
-              </v-col>
-              <v-col cols="12" sm="6">
-                <div class="text-caption text-grey">Requested Name</div>
-                <div class="text-body-1 font-weight-bold">{{ application.requested_name }}</div>
-              </v-col>
-              <v-col cols="12">
-                <div class="text-caption text-grey">Reason</div>
-                <div class="text-body-1">{{ application.reason }}</div>
-              </v-col>
-            </v-row>
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-label">Full Name</div>
+                <div class="info-value">{{ application.full_name }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">National ID</div>
+                <div class="info-value">{{ application.national_id }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">District</div>
+                <div class="info-value">{{ application.district }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">T/A</div>
+                <div class="info-value">{{ application.traditional_authority }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Village</div>
+                <div class="info-value">{{ application.village }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Current Name</div>
+                <div class="info-value">{{ application.current_name }}</div>
+              </div>
+              <div class="info-item info-item--highlight">
+                <div class="info-label">Requested Name</div>
+                <div class="info-value">{{ application.requested_name }}</div>
+              </div>
+              <div class="info-item info-item--wide">
+                <div class="info-label">Reason</div>
+                <div class="info-value info-value--rich">{{ application.reason }}</div>
+              </div>
+            </div>
           </v-card-text>
         </v-card>
 
         <!-- Documents -->
-        <v-card class="mb-4">
-          <v-card-title class="d-flex justify-space-between align-center">
-            <span>Supporting Documents</span>
+        <v-card class="detail-card mb-4" elevation="2">
+          <v-card-title class="detail-card__title d-flex justify-space-between align-center">
+            <div>
+              <div class="text-h6">Supporting Documents</div>
+              <div class="text-caption text-medium-emphasis">Unlimited uploads, 50MB per file</div>
+            </div>
             <v-btn
-              v-if="authStore.hasPermission('upload documents')"
+              v-if="canUploadDocuments"
               size="small"
+              color="primary"
+              variant="tonal"
               prepend-icon="mdi-upload"
               @click="showUploadDialog = true"
             >
@@ -65,7 +109,7 @@
             </v-btn>
           </v-card-title>
           <v-card-text>
-            <v-list v-if="documents.length > 0">
+            <v-list v-if="documents.length > 0" class="document-list" lines="two">
               <v-list-item
                 v-for="doc in documents"
                 :key="doc.id"
@@ -74,45 +118,57 @@
                 :subtitle="formatFileSize(doc.file_size)"
               >
                 <template v-slot:append>
-                  <v-btn
-                    icon="mdi-eye"
-                    size="small"
-                    variant="text"
-                    @click="previewDocument(doc)"
-                  />
-                  <v-btn
-                    v-if="authStore.hasPermission('download documents')"
-                    icon="mdi-download"
-                    size="small"
-                    variant="text"
-                    @click="downloadDocument(doc.id)"
-                  />
-                  <v-btn
-                    v-if="canDeleteDocument(doc)"
-                    icon="mdi-delete"
-                    size="small"
-                    variant="text"
-                    color="error"
-                    :loading="deletingDocumentId === doc.id"
-                    @click="deleteDocument(doc.id)"
-                  />
+                  <div class="d-flex align-center ga-1">
+                    <v-btn
+                      icon="mdi-eye"
+                      size="small"
+                      variant="text"
+                      @click="previewDocument(doc)"
+                    />
+                    <v-btn
+                      v-if="canDownloadDocuments"
+                      icon="mdi-download"
+                      size="small"
+                      variant="text"
+                      @click="downloadDocument(doc.id)"
+                    />
+                    <v-btn
+                      v-if="canDeleteDocument(doc)"
+                      icon="mdi-delete"
+                      size="small"
+                      variant="text"
+                      color="error"
+                      :loading="deletingDocumentId === doc.id"
+                      @click="deleteDocument(doc.id)"
+                    />
+                  </div>
                 </template>
               </v-list-item>
             </v-list>
-            <v-alert v-else type="info" variant="tonal">
-              No documents uploaded yet
-            </v-alert>
+            <v-sheet v-else class="empty-state empty-state--neutral" rounded="lg">
+              <v-icon size="32" class="mb-2">mdi-file-document-outline</v-icon>
+              <div class="text-subtitle-2 mb-1">No documents uploaded yet</div>
+              <div class="text-caption text-medium-emphasis">
+                Upload supporting evidence to keep the file complete and audit-ready.
+              </div>
+            </v-sheet>
           </v-card-text>
         </v-card>
 
         <!-- Vetting Records -->
         <v-card
           v-if="authStore.hasAnyPermission(['view vetting records', 'conduct police vetting', 'conduct nis vetting', 'send back vetting'])"
-          class="mb-4"
+          class="detail-card mb-4"
+          elevation="2"
         >
-          <v-card-title>Vetting Records</v-card-title>
+          <v-card-title class="detail-card__title">
+            <div>
+              <div class="text-h6">Vetting Records</div>
+              <div class="text-caption text-medium-emphasis">Track police and NIS progress in one place</div>
+            </div>
+          </v-card-title>
           <v-card-text>
-            <v-tabs v-model="vettingTab">
+            <v-tabs v-model="vettingTab" class="vetting-tabs">
               <v-tab v-if="authStore.hasAnyPermission(['view vetting records', 'conduct police vetting', 'send back vetting'])" value="police">
                 Police Vetting
               </v-tab>
@@ -126,23 +182,19 @@
                 v-if="authStore.hasAnyPermission(['view vetting records', 'conduct police vetting', 'send back vetting'])"
                 value="police"
               >
-                <div>
-                  <PoliceVettingCard
-                    :application-id="application.id"
-                    :can-edit="canDoPoliceVetting"
-                  />
-                </div>
+                <PoliceVettingCard
+                  :application-id="application.id"
+                  :can-edit="canDoPoliceVetting"
+                />
               </v-window-item>
               <v-window-item
                 v-if="authStore.hasAnyPermission(['view vetting records', 'conduct nis vetting', 'send back vetting'])"
                 value="nis"
               >
-                <div>
-                  <NisVettingCard
-                    :application-id="application.id"
-                    :can-edit="canDoNisVetting"
-                  />
-                </div>
+                <NisVettingCard
+                  :application-id="application.id"
+                  :can-edit="canDoNisVetting"
+                />
               </v-window-item>
             </v-window>
           </v-card-text>
@@ -152,187 +204,295 @@
 
       <!-- Sidebar Actions -->
       <v-col cols="12" md="4">
-        <v-card class="mb-4">
-          <v-card-title>Actions</v-card-title>
+        <v-card v-if="hasSidebarActions" class="detail-card action-card mb-4" elevation="2">
+          <v-card-title class="detail-card__title">
+            <div>
+              <div class="text-h6">Actions</div>
+              <div class="text-caption text-medium-emphasis">Only actions allowed for your role and this status appear here</div>
+            </div>
+          </v-card-title>
           <v-card-text>
-            <v-btn
-              v-if="canEditApplication"
-              block
-              color="primary"
-              prepend-icon="mdi-pencil"
-              class="mb-2"
-              @click="editApplication"
+            <div class="action-section" v-if="canEditApplication || canSendBackToDataEntry">
+              <div class="action-section__label">Corrections</div>
+              <v-btn
+                v-if="canEditApplication"
+                block
+                color="primary"
+                size="large"
+                prepend-icon="mdi-pencil"
+                class="action-button mb-2"
+                @click="editApplication"
+              >
+                Edit Application
+              </v-btn>
+
+              <v-btn
+                v-if="canSendBackToDataEntry"
+                block
+                color="warning"
+                size="large"
+                prepend-icon="mdi-arrow-u-left-bottom"
+                class="action-button mb-2"
+                @click="showSendBackToDataEntryDialog = true"
+              >
+                Send Back to Data Entry
+              </v-btn>
+            </div>
+
+            <div class="action-section" v-if="canDoPoliceVetting || canDoNisVetting">
+              <div class="action-section__label">Vetting</div>
+              <v-btn
+                v-if="canDoPoliceVetting"
+                block
+                color="primary"
+                variant="tonal"
+                size="large"
+                prepend-icon="mdi-shield-check"
+                class="action-button mb-2"
+                @click="$router.push({ name: 'PoliceVetting', params: { id: application.id } })"
+              >
+                Police Vetting
+              </v-btn>
+
+              <v-btn
+                v-if="canDoNisVetting"
+                block
+                color="primary"
+                variant="tonal"
+                size="large"
+                prepend-icon="mdi-shield-account"
+                class="action-button mb-2"
+                @click="$router.push({ name: 'NisVetting', params: { id: application.id } })"
+              >
+                NIS Vetting
+              </v-btn>
+            </div>
+
+            <div class="action-section" v-if="canAssignPolice || canAssignNis">
+              <div class="action-section__label">Assignments</div>
+              <v-btn
+                v-if="canAssignPolice"
+                block
+                color="info"
+                variant="tonal"
+                size="large"
+                prepend-icon="mdi-account-plus"
+                class="action-button mb-2"
+                @click="showAssignPoliceDialog = true"
+              >
+                {{ application.assigned_police_officer ? 'Reassign Police Officer' : 'Assign Police Officer' }}
+              </v-btn>
+
+              <v-btn
+                v-if="canAssignNis"
+                block
+                color="info"
+                variant="tonal"
+                size="large"
+                prepend-icon="mdi-account-plus"
+                class="action-button mb-2"
+                @click="showAssignNisDialog = true"
+              >
+                {{ application.assigned_nis_officer ? 'Reassign NIS Officer' : 'Assign NIS Officer' }}
+              </v-btn>
+            </div>
+
+            <div class="action-section" v-if="canForwardToApproval || canApprove || canDeny || canSendBackToAdmin">
+              <div class="action-section__label">Approval</div>
+              <v-btn
+                v-if="canForwardToApproval"
+                block
+                color="info"
+                size="large"
+                prepend-icon="mdi-arrow-forward"
+                class="action-button mb-2"
+                :loading="forwarding"
+                @click="forwardToApproval"
+              >
+                Forward to Approval
+              </v-btn>
+
+              <v-btn
+                v-if="canApprove"
+                block
+                color="success"
+                size="large"
+                prepend-icon="mdi-check"
+                class="action-button mb-2"
+                @click="showApproveDialog = true"
+              >
+                Approve
+              </v-btn>
+
+              <v-btn
+                v-if="canDeny"
+                block
+                color="error"
+                size="large"
+                prepend-icon="mdi-close"
+                class="action-button mb-2"
+                @click="showDenyDialog = true"
+              >
+                Deny
+              </v-btn>
+
+              <v-btn
+                v-if="canSendBackToAdmin"
+                block
+                color="info"
+                variant="tonal"
+                size="large"
+                prepend-icon="mdi-arrow-left"
+                class="action-button mb-2"
+                @click="showSendBackToAdminDialog = true"
+              >
+                Send Back to Admin
+              </v-btn>
+            </div>
+
+            <div class="action-section" v-if="canHandleApproverSendBack">
+              <div class="action-section__label">Approver Return</div>
+              <v-alert type="warning" variant="tonal" density="compact" class="mb-3">
+                <div class="font-weight-medium mb-1">Returned from approver review</div>
+                <div class="text-body-2">
+                  {{ application?.approver_send_back_reason || 'The approver returned this file for further action.' }}
+                </div>
+              </v-alert>
+
+              <v-btn
+                v-if="application?.assigned_police_officer"
+                block
+                color="primary"
+                variant="tonal"
+                size="large"
+                prepend-icon="mdi-shield-account"
+                class="action-button mb-2"
+                @click="openHandleSendBackDialog('send_to_police')"
+              >
+                Return to Police Vetting
+              </v-btn>
+
+              <v-btn
+                v-if="application?.assigned_nis_officer"
+                block
+                color="primary"
+                variant="tonal"
+                size="large"
+                prepend-icon="mdi-shield-check"
+                class="action-button mb-2"
+                @click="openHandleSendBackDialog('send_to_nis')"
+              >
+                Return to NIS Vetting
+              </v-btn>
+            </div>
+
+            <div
+              class="action-section"
+              v-if="(canSendBackPolice || canSendBackNis) && !canHandleApproverSendBack"
             >
-              Edit Application
-            </v-btn>
+              <div class="action-section__label">Vetting Feedback</div>
+              <v-btn
+                v-if="canSendBackPolice"
+                block
+                color="info"
+                variant="tonal"
+                size="large"
+                prepend-icon="mdi-send"
+                class="action-button mb-2"
+                @click="showSendBackPoliceDialog = true"
+              >
+                Send Back Police Vetting
+              </v-btn>
 
-            <v-btn
-              v-if="canDoPoliceVetting"
-              block
-              color="primary"
-              prepend-icon="mdi-shield-check"
-              class="mb-2"
-              @click="$router.push({ name: 'PoliceVetting', params: { id: application.id } })"
-            >
-              Police Vetting
-            </v-btn>
-
-            <v-btn
-              v-if="canDoNisVetting"
-              block
-              color="primary"
-              prepend-icon="mdi-shield-account"
-              class="mb-2"
-              @click="$router.push({ name: 'NisVetting', params: { id: application.id } })"
-            >
-              NIS Vetting
-            </v-btn>
-
-            <v-divider class="my-3" />
-
-            <!-- Assignment Actions (Admin/OPC) -->
-            <v-btn
-              v-if="canAssignPolice"
-              block
-              color="info"
-              prepend-icon="mdi-account-plus"
-              class="mb-2"
-              @click="showAssignPoliceDialog = true"
-            >
-              {{ application.assigned_police_officer ? 'Reassign Police Officer' : 'Assign Police Officer' }}
-            </v-btn>
-
-            <v-btn
-              v-if="canAssignNis"
-              block
-              color="info"
-              prepend-icon="mdi-account-plus"
-              class="mb-2"
-              @click="showAssignNisDialog = true"
-            >
-              {{ application.assigned_nis_officer ? 'Reassign NIS Officer' : 'Assign NIS Officer' }}
-            </v-btn>
-
-            <v-divider class="my-3" />
-
-            <v-btn
-              v-if="canForwardToApproval"
-              block
-              color="info"
-              prepend-icon="mdi-arrow-forward"
-              class="mb-2"
-              :loading="forwarding"
-              @click="forwardToApproval"
-            >
-              Forward to Approval
-            </v-btn>
-
-            <v-btn
-              v-if="canApprove"
-              block
-              color="success"
-              prepend-icon="mdi-check"
-              class="mb-2"
-              @click="showApproveDialog = true"
-            >
-              Approve
-            </v-btn>
-
-            <v-btn
-              v-if="canDeny"
-              block
-              color="error"
-              prepend-icon="mdi-close"
-              class="mb-2"
-              @click="showDenyDialog = true"
-            >
-              Deny
-            </v-btn>
-
-            <v-btn
-              v-if="canSendBackToAdmin"
-              block
-              color="info"
-              prepend-icon="mdi-arrow-left"
-              class="mb-2"
-              @click="showSendBackToAdminDialog = true"
-            >
-              Send Back to Admin
-            </v-btn>
-
-            <v-divider v-if="canSendBackPolice || canSendBackNis" class="my-3" />
-
-            <v-btn
-              v-if="canSendBackPolice"
-              block
-              color="info"
-              prepend-icon="mdi-send"
-              class="mb-2"
-              @click="showSendBackPoliceDialog = true"
-            >
-              Send Back Police Vetting
-            </v-btn>
-
-            <v-btn
-              v-if="canSendBackNis"
-              block
-              color="secondary"
-              prepend-icon="mdi-send"
-              class="mb-2"
-              @click="showSendBackNisDialog = true"
-            >
-              Send Back NIS Vetting
-            </v-btn>
+              <v-btn
+                v-if="canSendBackNis"
+                block
+                color="secondary"
+                variant="tonal"
+                size="large"
+                prepend-icon="mdi-send"
+                class="action-button mb-2"
+                @click="showSendBackNisDialog = true"
+              >
+                Send Back NIS Vetting
+              </v-btn>
+            </div>
           </v-card-text>
         </v-card>
 
         <!-- Application Info -->
-        <v-card class="mb-4">
-          <v-card-title>Application Info</v-card-title>
+        <v-card class="detail-card mb-4" elevation="2">
+          <v-card-title class="detail-card__title">
+            <div>
+              <div class="text-h6">Application Info</div>
+              <div class="text-caption text-medium-emphasis">Ownership and assignment metadata</div>
+            </div>
+          </v-card-title>
           <v-card-text>
-            <div class="mb-3">
-              <div class="text-caption text-grey">Created By</div>
-              <div class="text-body-2">{{ application.created_by?.username }}</div>
-            </div>
-            <div class="mb-3">
-              <div class="text-caption text-grey">Created At</div>
-              <div class="text-body-2">{{ formatDate(application.created_at) }}</div>
-            </div>
-            <div v-if="application.assigned_police_officer" class="mb-3">
-              <div class="text-caption text-grey">Police Officer</div>
-              <div class="text-body-2">{{ application.assigned_police_officer?.username }}</div>
-            </div>
-            <div v-if="application.assigned_nis_officer" class="mb-3">
-              <div class="text-caption text-grey">NIS Officer</div>
-              <div class="text-body-2">{{ application.assigned_nis_officer?.username }}</div>
+            <div class="side-meta">
+              <div class="side-meta__item">
+                <div class="info-label">Created By</div>
+                <div class="info-value">{{ application.created_by?.username }}</div>
+              </div>
+              <div class="side-meta__item">
+                <div class="info-label">Created At</div>
+                <div class="info-value">{{ formatDate(application.created_at) }}</div>
+              </div>
+              <div v-if="application.data_entry_return_reason" class="side-meta__item">
+                <div class="info-label">Returned to Data Entry</div>
+                <div class="info-value info-value--rich">{{ application.data_entry_return_reason }}</div>
+              </div>
+              <div v-if="application.assigned_opc_approver" class="side-meta__item">
+                <div class="info-label">OPC Approver</div>
+                <div class="info-value">{{ application.assigned_opc_approver?.username }}</div>
+              </div>
+              <div v-if="application.approver_send_back_reason" class="side-meta__item">
+                <div class="info-label">Returned from Approver</div>
+                <div class="info-value info-value--rich">{{ application.approver_send_back_reason }}</div>
+              </div>
+              <div v-if="application.assigned_police_officer" class="side-meta__item">
+                <div class="info-label">Police Officer</div>
+                <div class="info-value">{{ application.assigned_police_officer?.username }}</div>
+              </div>
+              <div v-if="application.assigned_nis_officer" class="side-meta__item">
+                <div class="info-label">NIS Officer</div>
+                <div class="info-value">{{ application.assigned_nis_officer?.username }}</div>
+              </div>
             </div>
           </v-card-text>
 
         </v-card>
 
         <!-- Decisions -->
-        <v-card v-if="decisions.length > 0" class="mb-4">
-          <v-card-title>Decisions</v-card-title>
+        <v-card v-if="decisions.length > 0" class="detail-card mb-4" elevation="2">
+          <v-card-title class="detail-card__title">
+            <div>
+              <div class="text-h6">Decisions</div>
+              <div class="text-caption text-medium-emphasis">History of approvals and denials</div>
+            </div>
+          </v-card-title>
           <v-card-text>
-            <v-timeline>
+            <v-timeline side="end" density="compact">
               <v-timeline-item
                 v-for="decision in decisions"
                 :key="decision.id"
                 :color="decision.decision_value?.code === 'approved' ? 'success' : 'error'"
+                dot-color="surface"
+                size="small"
               >
                 <template v-slot:icon>
-                  <v-icon>
+                  <v-icon size="18">
                     {{ decision.decision_value?.code === 'approved' ? 'mdi-check' : 'mdi-close' }}
                   </v-icon>
                 </template>
-                <div>
+                <div class="decision-item">
                   <div class="font-weight-bold">
                     {{ decision.decision_value?.name }}
                   </div>
-                  <div class="text-caption text-grey">
+                  <div class="text-caption text-medium-emphasis">
                     {{ formatDate(decision.decided_at) }} by {{ decision.decided_by?.username }}
                   </div>
-                  <div v-if="decision.reason" class="mt-2">
+                  <div v-if="decision.reason" class="mt-2 text-body-2">
                     {{ decision.reason }}
                   </div>
                 </div>
@@ -351,7 +511,7 @@
           <div class="mb-4">
             <label class="text-body-2 text-medium-emphasis mb-1 d-block">
               Select Files
-              <span class="text-caption ml-1">Max 5 files, 10MB each (PDF, JPG, PNG)</span>
+              <span class="text-caption ml-1">Unlimited files, 50MB each (PDF, JPG, PNG)</span>
             </label>
             <input
               ref="uploadFileInputRef"
@@ -365,13 +525,13 @@
               color="primary"
               variant="outlined"
               prepend-icon="mdi-paperclip"
-              :disabled="uploadFiles.length >= 5"
+              :disabled="false"
               @click="triggerUploadFileInput"
             >
-              {{ uploadFiles.length >= 5 ? 'Maximum files reached' : 'Select Files' }}
+              Select Files
             </v-btn>
             <span v-if="uploadFiles.length > 0" class="ml-2 text-caption">
-              {{ uploadFiles.length }}/5 files selected
+              {{ uploadFiles.length }} files selected
             </span>
           </div>
 
@@ -387,7 +547,7 @@
           </v-alert>
 
           <v-list v-if="uploadFiles.length > 0" density="compact">
-            <v-list-subheader>Selected Files ({{ uploadFiles.length }}/5)</v-list-subheader>
+            <v-list-subheader>Selected Files ({{ uploadFiles.length }})</v-list-subheader>
             <v-list-item
               v-for="(file, index) in uploadFiles"
               :key="index"
@@ -779,6 +939,42 @@
       </v-card>
     </v-dialog>
 
+    <!-- Send Back to Data Entry Dialog -->
+    <v-dialog v-model="showSendBackToDataEntryDialog" max-width="600">
+      <v-card>
+        <v-card-title>Send Back to Data Entry</v-card-title>
+        <v-card-text>
+          <v-alert type="warning" variant="tonal" class="mb-4">
+            This will return the application to data entry for correction. The record will remain editable until it is resubmitted.
+          </v-alert>
+          <v-textarea
+            v-model="sendBackToDataEntryReason"
+            label="Reason for Correction *"
+            variant="outlined"
+            rows="5"
+            :rules="sendBackToDataEntryReasonRules"
+            hint="Please provide a clear reason for the correction request (minimum 10 characters)"
+            persistent-hint
+            required
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showSendBackToDataEntryDialog = false" :disabled="sendingBackToDataEntry">
+            Cancel
+          </v-btn>
+          <v-btn
+            color="warning"
+            @click="sendBackToDataEntry"
+            :disabled="!sendBackToDataEntryReason || sendBackToDataEntryReason.length < 10 || sendingBackToDataEntry"
+            :loading="sendingBackToDataEntry"
+          >
+            Send Back
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Send Back NIS Vetting Dialog -->
     <v-dialog v-model="showSendBackNisDialog" max-width="600">
       <v-card>
@@ -875,8 +1071,11 @@ const vettingTab = ref('police')
 // Send back state
 const showSendBackPoliceDialog = ref(false)
 const showSendBackNisDialog = ref(false)
+const showSendBackToDataEntryDialog = ref(false)
 const sendBackReason = ref('')
+const sendBackToDataEntryReason = ref('')
 const sendingBack = ref(false)
+const sendingBackToDataEntry = ref(false)
 const sendingBackToAdmin = ref(false)
 const handlingSendBack = ref(false)
 const forwarding = ref(false)
@@ -885,7 +1084,7 @@ const nisVettingRecord = ref<any>(null)
 const showSendBackToAdminDialog = ref(false)
 const sendBackToAdminReason = ref('')
 const showHandleSendBackDialog = ref(false)
-const handleSendBackAction = ref<'send_to_police' | 'send_to_nis' | 'allow_editing' | null>(null)
+const handleSendBackAction = ref<'send_to_police' | 'send_to_nis' | null>(null)
 const handleSendBackReason = ref('')
 
 // UI validation rules (keep these in script; Vue templates cannot contain TS type annotations)
@@ -896,6 +1095,11 @@ const sendBackReasonRules = [
   (v: string) => (v && v.length <= 2000) || 'Reason must not exceed 2000 characters'
 ]
 const sendBackToAdminReasonRules = [
+  (v: string) => !!v || 'Reason is required',
+  (v: string) => (v && v.length >= 10) || 'Reason must be at least 10 characters',
+  (v: string) => (v && v.length <= 5000) || 'Reason must not exceed 5000 characters'
+]
+const sendBackToDataEntryReasonRules = [
   (v: string) => !!v || 'Reason is required',
   (v: string) => (v && v.length >= 10) || 'Reason must be at least 10 characters',
   (v: string) => (v && v.length <= 5000) || 'Reason must not exceed 5000 characters'
@@ -912,207 +1116,67 @@ const nisOfficers = ref<Array<{ id: number; username: string; email?: string }>>
 const loadingOfficers = ref(false)
 const assigning = ref(false)
 
-const canEditApplication = computed(() => {
-  if (!application.value) return false
+const allowedActions = computed(() => application.value?.allowed_actions ?? [])
 
-  // Hide edit button if status is pending_approval
-  if (application.value.status?.code === 'pending_approval' || application.value.status?.code === 'approved' || application.value.status?.code === 'denied') {
-    return false
-  }
+function hasAllowedAction(action: string): boolean {
+  return allowedActions.value.includes(action)
+}
 
-  // Permission-based: allow edit if user can edit applications and application was sent back by approver
-  if (authStore.hasPermission('edit applications') && application.value.approver_send_back_reason) {
-    return true
-  }
-
-  // Cannot edit if application is assigned to any officer
-  if (application.value.assigned_police_officer || application.value.assigned_nis_officer) {
-    return false
-  }
-
-  // Users with create/edit permissions can edit unassigned applications they created
-  if (authStore.hasAnyPermission(['create applications', 'edit applications'])) {
-    return application.value.created_by?.id === authStore.user?.id
-  }
-  return false
-})
-
-const canDoPoliceVetting = computed(() => {
-  if (!application.value) return false
-  // Permission-based
-  if (!authStore.hasPermission('conduct police vetting')) return false
-  // Police officer can only vet assigned applications
-  if (application.value.assigned_police_officer?.id !== authStore.user?.id) {
-    return false
-  }
-
-  // Check application status - can only edit if:
-  // 1. Status is pending or police_vetting (not yet completed)
-  // 2. OR if vetting is sent_back (for clarifications)
-  const status = application.value.status?.code
-  const allowedStatuses = ['pending', 'police_vetting']
-
-  // If status allows police vetting, check if vetting is sent_back
-  if (allowedStatuses.includes(status)) {
-    return true
-  }
-
-  // If status is opc_review or beyond, check if vetting was sent back
-  if (policeVettingRecord.value?.status?.code === 'sent_back') {
-    return true
-  }
-
-  // Otherwise, cannot edit (vetting is completed and application has moved forward)
-  return false
-})
-
-const canDoNisVetting = computed(() => {
-  if (!application.value) return false
-  // Permission-based
-  if (!authStore.hasPermission('conduct nis vetting')) return false
-  // NIS officer can only vet assigned applications
-  if (application.value.assigned_nis_officer?.id !== authStore.user?.id) {
-    return false
-  }
-
-  // Check application status - can only edit if:
-  // 1. Status is nis_vetting (not yet completed)
-  // 2. OR if vetting is sent_back (for clarifications)
-  const status = application.value.status?.code
-  const allowedStatuses = ['nis_vetting']
-
-  // If status allows NIS vetting, can edit
-  if (allowedStatuses.includes(status)) {
-    return true
-  }
-
-  // If status is pending_approval or beyond, check if vetting was sent back
-  // This allows editing when OPC sends back for clarifications
-  if (nisVettingRecord.value?.status?.code === 'sent_back') {
-    return true
-  }
-
-  // Otherwise, cannot edit (vetting is completed and application has moved forward)
-  // This includes: pending_approval, approved, denied, archived, etc.
-  return false
-})
-
-const canSendBackPolice = computed(() => {
-  if (!application.value || !authStore.hasPermission('send back vetting')) return false
-  // Can send back only if:
-  // 1. Application is in OPC review status
-  // 2. Police vetting record exists and is completed
-  // 3. This means police has already submitted their vetting
-  const status = application.value.status?.code
-  if (status !== 'opc_review') return false
-  if (!policeVettingRecord.value) return false
-  // Only show if police vetting was actually completed (submitted)
-  return policeVettingRecord.value.status?.code === 'completed'
-})
-
-const canSendBackNis = computed(() => {
-  if (!application.value || !authStore.hasPermission('send back vetting')) return false
-  // Can send back only if:
-  // 1. Application is in OPC review status
-  // 2. NIS vetting record exists and is completed
-  // 3. This means NIS has already submitted their vetting
-  const status = application.value.status?.code
-  if (status !== 'opc_review') return false
-  if (!nisVettingRecord.value) return false
-  // Only show if NIS vetting was actually completed (submitted)
-  return nisVettingRecord.value.status?.code === 'completed'
-})
-
-const canForwardToApproval = computed(() => {
-  if (!application.value || !authStore.hasPermission('approve applications')) return false
-  // Can forward if application is in OPC review and both vetting are completed
-  const status = application.value.status?.code
-  if (status !== 'opc_review') return false
-
-  // Check if both vetting are completed
-  const policeCompleted = policeVettingRecord.value?.status?.code === 'completed'
-  const nisCompleted = nisVettingRecord.value?.status?.code === 'completed'
-
-  return policeCompleted && nisCompleted
-})
-
-const canApprove = computed(() => {
-  if (!application.value) return false
-  if (!authStore.hasPermission('approve applications')) return false
-  // Can approve only when application is in pending_approval status
-  const status = application.value.status?.code
-  return status === 'pending_approval'
-})
-
-const canDeny = computed(() => {
-  if (!application.value) return false
-  if (!authStore.hasPermission('deny applications')) return false
-  const status = application.value.status?.code
-  return status !== 'approved' && status !== 'denied'
-})
-
-const canSendBackToAdmin = computed(() => {
-  if (!application.value) return false
-  if (!authStore.hasPermission('approve applications')) return false
-  // Can send back only when application is in pending_approval status
-  const status = application.value.status?.code
-  return status === 'pending_approval'
-})
-
-const canHandleApproverSendBack = computed(() => {
-  if (!application.value) return false
-  if (!authStore.hasPermission('edit applications')) return false
-  // Can handle if application has approver_send_back_reason
-  return !!application.value.approver_send_back_reason && application.value.status?.code === 'opc_review'
-})
-
-const canAssignPolice = computed(() => {
-  if (!application.value) return false
-  if (!authStore.hasPermission('assign applications')) return false
-  // Can assign if status is pending or police_vetting (for reassignment)
-  // In opc_review, allow assignment only if police vetting is NOT completed yet (edge-case / recovery)
-  const status = application.value.status?.code
-  if (status === 'opc_review') {
-    const policeCompleted = policeVettingRecord.value?.status?.code === 'completed'
-    return !policeCompleted
-  }
-  return status === 'pending' || status === 'police_vetting'
-})
-
-const canAssignNis = computed(() => {
-  if (!application.value) return false
-  if (!authStore.hasPermission('assign applications')) return false
-  // Can assign if police vetting is completed or nis_vetting (for reassignment)
-  // In opc_review, allow assignment only if police vetting is completed BUT NIS vetting is NOT completed yet
-  const status = application.value.status?.code
-  if (status === 'opc_review') {
-    const policeCompleted = policeVettingRecord.value?.status?.code === 'completed'
-    const nisCompleted = nisVettingRecord.value?.status?.code === 'completed'
-    return policeCompleted && !nisCompleted
-  }
-  return status === 'police_completed' || status === 'nis_vetting'
-})
+const canEditApplication = computed(() => hasAllowedAction('edit_application'))
+const canDoPoliceVetting = computed(() => hasAllowedAction('conduct_police_vetting'))
+const canDoNisVetting = computed(() => hasAllowedAction('conduct_nis_vetting'))
+const canSendBackPolice = computed(() => hasAllowedAction('send_back_police_vetting'))
+const canSendBackNis = computed(() => hasAllowedAction('send_back_nis_vetting'))
+const canSendBackToDataEntry = computed(() => hasAllowedAction('send_back_to_data_entry'))
+const canForwardToApproval = computed(() => hasAllowedAction('forward_to_approval'))
+const canApprove = computed(() => hasAllowedAction('approve_application'))
+const canDeny = computed(() => hasAllowedAction('deny_application'))
+const canSendBackToAdmin = computed(() => hasAllowedAction('send_back_to_admin'))
+const canHandleApproverSendBack = computed(() => hasAllowedAction('handle_approver_send_back'))
+const canAssignPolice = computed(() => hasAllowedAction('assign_police_officer'))
+const canAssignNis = computed(() => hasAllowedAction('assign_nis_officer'))
+const canUploadDocuments = computed(() => hasAllowedAction('upload_documents'))
+const canDownloadDocuments = computed(() => hasAllowedAction('download_documents'))
+const canDeleteDocuments = computed(() => hasAllowedAction('delete_documents'))
+const currentApplicationId = computed(() => Number(route.params.id))
+const hasSidebarActions = computed(() => [
+  canEditApplication.value,
+  canSendBackToDataEntry.value,
+  canDoPoliceVetting.value,
+  canDoNisVetting.value,
+  canAssignPolice.value,
+  canAssignNis.value,
+  canForwardToApproval.value,
+  canApprove.value,
+  canDeny.value,
+  canSendBackToAdmin.value,
+  canSendBackPolice.value,
+  canSendBackNis.value,
+  canHandleApproverSendBack.value
+].some(Boolean))
 
 const canDeleteDocument = (doc: any) => {
-  // Permission-based (backend also enforces): users with delete permission can delete
-  if (authStore.hasPermission('delete documents')) return true
-  // Users can delete documents they uploaded
+  if (!canDeleteDocuments.value) return false
   if (doc.uploaded_by?.id === authStore.user?.id) return true
-  // Allow creators with create permission to delete documents from applications they created
-  if (authStore.hasPermission('create applications') && application.value?.created_by?.id === authStore.user?.id) {
+  if (authStore.hasPermission('delete documents') && application.value?.created_by?.id === authStore.user?.id) {
     return true
   }
-  return false
+  return authStore.isAdmin
 }
 
 function getStatusColor(statusCode: string) {
   const colors: Record<string, string> = {
     'pending': 'info',
+    'returned_to_data_entry': 'warning',
+    'opc_review': 'purple',
+    'police_completed': 'teal',
+    'nis_completed': 'teal',
+    'pending_approval': 'indigo',
     'approved': 'success',
     'denied': 'error',
-    'under_review': 'info',
     'police_vetting': 'primary',
-    'nis_vetting': 'primary'
+    'nis_vetting': 'primary',
+    'archived': 'grey'
   }
   return colors[statusCode] || 'grey'
 }
@@ -1149,10 +1213,10 @@ function getFileIconColor(fileName: string): string {
 }
 
 function validateUploadFile(file: File): string | null {
-  // Check file size (10MB = 10 * 1024 * 1024 bytes)
+  // Check file size (50MB = 50 * 1024 * 1024 bytes)
   const maxSize = 50 * 1024 * 1024
   if (file.size > maxSize) {
-    return `${file.name}: File size exceeds 10MB`
+    return `${file.name}: File size exceeds 50MB`
   }
 
   // Check file type
@@ -1184,26 +1248,8 @@ function handleUploadFileSelection(event: Event) {
   // Convert FileList to Array
   const newFiles = Array.from(files)
 
-  // Combine with existing valid files (up to 5 total)
-  const currentCount = uploadFiles.value.length
-  const remainingSlots = 5 - currentCount
-
-  if (remainingSlots <= 0) {
-    uploadFileErrors.value.push('Maximum 5 files allowed. Please remove some files first.')
-    if (uploadFileInputRef.value) {
-      uploadFileInputRef.value.value = ''
-    }
-    return
-  }
-
-  // Take only as many files as we have slots
-  const filesToAdd = newFiles.slice(0, remainingSlots)
-  if (newFiles.length > remainingSlots) {
-    uploadFileErrors.value.push(`Maximum 5 files allowed. Only ${remainingSlots} more file(s) can be added.`)
-  }
-
   // Validate and add new files
-  filesToAdd.forEach((file) => {
+  newFiles.forEach((file) => {
     // Check for duplicates
     const isDuplicate = uploadFiles.value.some(existingFile =>
       existingFile.name === file.name && existingFile.size === file.size
@@ -1565,9 +1611,12 @@ async function denyApplication() {
 }
 
 function editApplication() {
-  router.push({ name: 'EditApplication', params: { id: application.value?.id } })
-  // TODO: Implement edit functionality
-  toast.info('Edit functionality coming soon')
+  if (!Number.isFinite(currentApplicationId.value)) {
+    toast.error('Application not found')
+    return
+  }
+
+  router.push({ name: 'EditApplication', params: { id: currentApplicationId.value } })
 }
 
 async function fetchOfficers() {
@@ -1619,17 +1668,22 @@ async function fetchOfficers() {
 }
 
 async function assignPoliceOfficer() {
-  if (!selectedPoliceOfficer.value || !application.value) return
+  if (!selectedPoliceOfficer.value || !Number.isFinite(currentApplicationId.value)) return
 
   assigning.value = true
   try {
-    await applicationsApi.assignPolice(application.value.id, {
+    await applicationsApi.assignPolice(currentApplicationId.value, {
       police_officer_id: selectedPoliceOfficer.value
     })
     toast.success('Application assigned to police officer successfully')
     showAssignPoliceDialog.value = false
     selectedPoliceOfficer.value = null
-    await fetchApplication()
+    try {
+      await fetchApplication()
+    } catch (refreshError) {
+      console.warn('Assigned police officer, but failed to refresh application:', refreshError)
+      toast.info('Assignment saved. Refresh the page to load the latest application state.')
+    }
   } catch (error: any) {
     console.error('Assign police error:', error)
     const errorMessage = error.response?.data?.error?.message ||
@@ -1642,17 +1696,22 @@ async function assignPoliceOfficer() {
 }
 
 async function assignNisOfficer() {
-  if (!selectedNisOfficer.value || !application.value) return
+  if (!selectedNisOfficer.value || !Number.isFinite(currentApplicationId.value)) return
 
   assigning.value = true
   try {
-    await applicationsApi.assignNis(application.value.id, {
+    await applicationsApi.assignNis(currentApplicationId.value, {
       nis_officer_id: selectedNisOfficer.value
     })
     toast.success('Application assigned to NIS officer successfully')
     showAssignNisDialog.value = false
     selectedNisOfficer.value = null
-    await fetchApplication()
+    try {
+      await fetchApplication()
+    } catch (refreshError) {
+      console.warn('Assigned NIS officer, but failed to refresh application:', refreshError)
+      toast.info('Assignment saved. Refresh the page to load the latest application state.')
+    }
   } catch (error: any) {
     console.error('Assign NIS error:', error)
     const errorMessage = error.response?.data?.error?.message ||
@@ -1752,11 +1811,11 @@ async function sendBackNisVetting() {
 }
 
 async function forwardToApproval() {
-  if (!application.value) return
+  if (!Number.isFinite(currentApplicationId.value)) return
 
   forwarding.value = true
   try {
-    const response = await applicationsApi.forwardToApproval(application.value.id)
+    const response = await applicationsApi.forwardToApproval(currentApplicationId.value)
     if (response.data.success) {
       toast.success('Application forwarded to approval successfully')
       await fetchApplication()
@@ -1782,14 +1841,14 @@ async function handleSendBackToAdmin() {
     return
   }
 
-  if (!application.value) {
+  if (!Number.isFinite(currentApplicationId.value)) {
     toast.error('Application not found')
     return
   }
 
   sendingBackToAdmin.value = true
   try {
-    const response = await applicationsApi.sendBackToAdmin(application.value.id, sendBackToAdminReason.value)
+    const response = await applicationsApi.sendBackToAdmin(currentApplicationId.value, sendBackToAdminReason.value)
     if (response.data.success) {
       toast.success('Application sent back to admin successfully')
       showSendBackToAdminDialog.value = false
@@ -1807,13 +1866,44 @@ async function handleSendBackToAdmin() {
   }
 }
 
+async function sendBackToDataEntry() {
+  if (!sendBackToDataEntryReason.value || sendBackToDataEntryReason.value.length < 10) {
+    toast.error('Please provide a reason (minimum 10 characters)')
+    return
+  }
+
+  if (!Number.isFinite(currentApplicationId.value)) {
+    toast.error('Application not found')
+    return
+  }
+
+  sendingBackToDataEntry.value = true
+  try {
+    const response = await applicationsApi.sendBackToDataEntry(currentApplicationId.value, sendBackToDataEntryReason.value)
+    if (response.data.success) {
+      toast.success('Application sent back to data entry successfully')
+      showSendBackToDataEntryDialog.value = false
+      sendBackToDataEntryReason.value = ''
+      await fetchApplication()
+    }
+  } catch (error: any) {
+    console.error('Send back to data entry error:', error)
+    const errorMessage = error.response?.data?.error?.message ||
+                        error.response?.data?.message ||
+                        'Failed to send back application to data entry'
+    toast.error(errorMessage)
+  } finally {
+    sendingBackToDataEntry.value = false
+  }
+}
+
 async function handleApproverSendBack() {
-  if (!application.value || !handleSendBackAction.value) return
+  if (!handleSendBackAction.value || !Number.isFinite(currentApplicationId.value)) return
 
   handlingSendBack.value = true
   try {
     const response = await applicationsApi.handleApproverSendBack(
-      application.value.id,
+      currentApplicationId.value,
       handleSendBackAction.value,
       handleSendBackReason.value || undefined
     )
@@ -1839,32 +1929,10 @@ async function handleApproverSendBack() {
   }
 }
 
-async function handleAllowEditing() {
-  if (!application.value) return
-
-  if (!confirm('This will allow you to edit the application. The send-back reason will be cleared. Continue?')) {
-    return
-  }
-
-  handlingSendBack.value = true
-  try {
-    const response = await applicationsApi.handleApproverSendBack(
-      application.value.id,
-      'allow_editing'
-    )
-    if (response.data.success) {
-      toast.success('Application is now available for editing')
-      await fetchApplication()
-    }
-  } catch (error: any) {
-    console.error('Allow editing error:', error)
-    const errorMessage = error.response?.data?.error?.message ||
-                        error.response?.data?.message ||
-                        'Failed to allow editing'
-    toast.error(errorMessage)
-  } finally {
-    handlingSendBack.value = false
-  }
+function openHandleSendBackDialog(action: 'send_to_police' | 'send_to_nis') {
+  handleSendBackAction.value = action
+  handleSendBackReason.value = ''
+  showHandleSendBackDialog.value = true
 }
 
 onMounted(() => {
@@ -1899,6 +1967,178 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.application-detail-page {
+  padding-bottom: 16px;
+}
+
+.detail-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(18, 56, 95, 0.08), transparent 32%),
+    linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #edf4f9 100%);
+  border: 1px solid rgba(18, 56, 95, 0.12);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.07);
+}
+
+.detail-hero__inner {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+  padding: 28px;
+}
+
+.detail-hero__copy {
+  min-width: 0;
+}
+
+.detail-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(18, 56, 95, 0.62);
+  margin-bottom: 10px;
+}
+
+.detail-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.detail-hero__actions {
+  flex-shrink: 0;
+}
+
+.detail-hero__button {
+  min-width: 160px;
+}
+
+.detail-card {
+  border: 1px solid rgba(18, 56, 95, 0.1);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.detail-card__title {
+  padding-bottom: 8px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+}
+
+.info-item {
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(18, 56, 95, 0.03), rgba(18, 56, 95, 0.05));
+  border: 1px solid rgba(18, 56, 95, 0.08);
+}
+
+.info-item--highlight {
+  background: linear-gradient(180deg, rgba(15, 118, 110, 0.08), rgba(15, 118, 110, 0.04));
+  border-color: rgba(15, 118, 110, 0.16);
+}
+
+.info-item--wide {
+  grid-column: 1 / -1;
+}
+
+.info-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(71, 85, 105, 0.82);
+  margin-bottom: 6px;
+}
+
+.info-value {
+  font-size: 1rem;
+  line-height: 1.55;
+  color: rgba(15, 23, 42, 0.94);
+  word-break: break-word;
+}
+
+.info-value--rich {
+  white-space: pre-wrap;
+}
+
+.document-list {
+  border: 1px solid rgba(18, 56, 95, 0.1);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.empty-state {
+  display: flex;
+  min-height: 160px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+}
+
+.empty-state--neutral {
+  border: 1px dashed rgba(18, 56, 95, 0.18);
+  background: linear-gradient(180deg, rgba(18, 56, 95, 0.02), rgba(18, 56, 95, 0.04));
+}
+
+.vetting-tabs {
+  margin-bottom: 12px;
+}
+
+.action-card {
+  position: sticky;
+  top: 96px;
+}
+
+.action-section {
+  margin-bottom: 20px;
+}
+
+.action-section:last-child {
+  margin-bottom: 0;
+}
+
+.action-section__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(18, 56, 95, 0.62);
+  margin-bottom: 10px;
+}
+
+.action-button {
+  border-radius: 14px;
+}
+
+.side-meta {
+  display: grid;
+  gap: 14px;
+}
+
+.side-meta__item {
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(18, 56, 95, 0.08);
+}
+
+.side-meta__item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.decision-item {
+  padding: 6px 0 18px;
+}
+
 .preview-container {
   width: 100%;
   height: 70vh;
@@ -1918,5 +2158,46 @@ onUnmounted(() => {
   max-width: 100%;
   max-height: 70vh;
   object-fit: contain;
+}
+
+@media (max-width: 960px) {
+  .detail-hero__inner {
+    flex-direction: column;
+  }
+
+  .action-card {
+    position: static;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .info-item--wide {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .application-detail-page {
+    padding-bottom: 8px;
+  }
+
+  .detail-hero__inner {
+    padding: 16px;
+  }
+
+  .detail-hero__actions,
+  .detail-hero__button {
+    width: 100%;
+  }
+
+  .detail-hero__meta {
+    gap: 8px;
+  }
+
+  .action-section {
+    margin-bottom: 16px;
+  }
 }
 </style>

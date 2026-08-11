@@ -44,7 +44,9 @@ class ApplicationControllerTest extends TestCase
 
     public function test_user_can_view_single_application(): void
     {
-        $application = Application::factory()->create();
+        $application = Application::factory()->create([
+            'created_by' => $this->user->id,
+        ]);
 
         $response = $this->actingAs($this->user, 'sanctum')
             ->getJson("/api/v1/applications/{$application->id}");
@@ -55,6 +57,34 @@ class ApplicationControllerTest extends TestCase
                 'data',
             ])
             ->assertJson(['success' => true]);
+    }
+
+    public function test_user_cannot_view_another_users_application(): void
+    {
+        $owner = User::factory()->create();
+        $application = Application::factory()->create([
+            'created_by' => $owner->id,
+        ]);
+
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->getJson("/api/v1/applications/{$application->id}");
+
+        $response->assertStatus(403)
+            ->assertJson(['success' => false]);
+    }
+
+    public function test_user_cannot_delete_another_users_application(): void
+    {
+        $owner = User::factory()->create();
+        $application = Application::factory()->create([
+            'created_by' => $owner->id,
+        ]);
+
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->deleteJson("/api/v1/applications/{$application->id}");
+
+        $response->assertStatus(403)
+            ->assertJson(['success' => false]);
     }
 
     public function test_user_can_search_applications(): void

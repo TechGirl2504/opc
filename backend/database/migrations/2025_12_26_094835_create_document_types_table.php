@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('name')->unique();
             $table->string('code')->unique(); // supporting_document, police_vetting_report, etc.
             $table->text('description')->nullable();
-            $table->integer('max_file_size')->default(10485760); // 10MB in bytes
+            $table->integer('max_file_size')->default(52428800); // 50MB in bytes
             $table->json('allowed_mime_types')->nullable(); // ['application/pdf', 'image/jpeg', etc.]
             $table->boolean('is_active')->default(true);
             $table->timestamps();

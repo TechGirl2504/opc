@@ -211,9 +211,7 @@ function formatDate(date: string) {
 }
 
 function canVet(item: Application): boolean {
-  // Can vet if assigned to this police officer and not yet completed
-  return item.assigned_police_officer?.id === authStore.user?.id &&
-         !item.police_vetting_completed_at
+  return item.allowed_actions?.includes('conduct_police_vetting') ?? false
 }
 
 function startVetting(item: Application) {
@@ -286,4 +284,3 @@ onMounted(() => {
   loadStatusOptions()
 })
 </script>
-

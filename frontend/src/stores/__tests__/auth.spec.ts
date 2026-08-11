@@ -11,19 +11,21 @@ vi.mock('@/router', () => ({
 
 const loginMock = vi.fn()
 const logoutMock = vi.fn()
+const csrfCookieMock = vi.fn()
 const userMock = vi.fn()
 
 vi.mock('@/api/auth', () => ({
   authApi: {
+    csrfCookie: csrfCookieMock,
     login: loginMock,
     logout: logoutMock,
     user: userMock,
   },
 }))
 
-function installMockLocalStorage() {
+function installMockStorage() {
   let store: Record<string, string> = {}
-  const localStorageMock = {
+  const storageMock = {
     getItem: (key: string) => (Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null),
     setItem: (key: string, value: string) => {
       store[key] = String(value)
@@ -36,8 +38,8 @@ function installMockLocalStorage() {
     },
   }
 
-  Object.defineProperty(window, 'localStorage', {
-    value: localStorageMock,
+  Object.defineProperty(window, 'sessionStorage', {
+    value: storageMock,
     configurable: true,
   })
 }
@@ -45,21 +47,22 @@ function installMockLocalStorage() {
 describe('auth store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    installMockLocalStorage()
-    window.localStorage.clear()
+    installMockStorage()
+    window.sessionStorage.clear()
     pushMock.mockClear()
     loginMock.mockReset()
     logoutMock.mockReset()
+    csrfCookieMock.mockReset()
     userMock.mockReset()
     vi.resetModules()
   })
 
-  it('stores token and user on successful login', async () => {
+  it('loads the user on successful login', async () => {
+    csrfCookieMock.mockResolvedValue({})
     loginMock.mockResolvedValue({
       data: {
         success: true,
         data: {
-          token: 't-1',
           user: { id: 1, roles: ['admin'], permissions: [] },
         },
       },
@@ -70,26 +73,22 @@ describe('auth store', () => {
 
     await store.login({ username: 'u', password: 'p' })
 
-    expect(store.token).toBe('t-1')
     expect(store.isAuthenticated).toBe(true)
-    expect(window.localStorage.getItem('auth_token')).toBe('t-1')
     expect(store.user?.id).toBe(1)
+    expect(csrfCookieMock).toHaveBeenCalledTimes(1)
   })
 
-  it('clears token and redirects on logout (even if API errors)', async () => {
+  it('clears user and redirects on logout (even if API errors)', async () => {
     logoutMock.mockRejectedValue(new Error('network'))
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    window.localStorage.setItem('auth_token', 't-2')
     const { useAuthStore } = await import('@/stores/auth')
     const store = useAuthStore()
+    store.user = { id: 2, roles: ['admin'], permissions: [] } as any
 
     await store.logout()
 
-    expect(store.token).toBe(null)
     expect(store.user).toBe(null)
-    expect(window.localStorage.getItem('auth_token')).toBe(null)
-    expect(pushMock).toHaveBeenCalledWith('/login')
+    expect(pushMock).toHaveBeenCalledWith({ name: 'Login' })
   })
 })
-

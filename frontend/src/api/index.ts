@@ -5,16 +5,27 @@ function getApiBaseUrl(): string {
   const runtime = (window as any).__ENV__?.VITE_API_BASE_URL as string | undefined
   if (runtime && runtime.trim().length > 0) return runtime
 
+  const hostname = window.location.hostname
+  const isLocalDevHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+
   // Fallback to Vite build-time env (local dev)
   const buildTime = import.meta.env.VITE_API_BASE_URL as string | undefined
-  if (buildTime && buildTime.trim().length > 0) return buildTime
+  if (buildTime && buildTime.trim().length > 0) {
+    if (import.meta.env.DEV && isLocalDevHost && /^https?:\/\/localhost:8000\/api\/v1\/?$/i.test(buildTime.trim())) {
+      return '/api/v1'
+    }
 
-  return 'http://localhost:8000/api/v1'
+    return buildTime
+  }
+
+  // Default to same-origin API so Vite's dev proxy handles local backend routing.
+  return '/api/v1'
 }
 
 const api: AxiosInstance = axios.create({
   baseURL: getApiBaseUrl(),
   withCredentials: true, // Required for Sanctum SPA
+  withXSRFToken: true,
   headers: {
     'Accept': 'application/json',
     'Content-Type': 'application/json'
@@ -23,13 +34,7 @@ const api: AxiosInstance = axios.create({
 
 // Request interceptor
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('auth_token')
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
+  (config) => config,
   (error) => {
     return Promise.reject(error)
   }
@@ -39,9 +44,8 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
-      localStorage.removeItem('auth_token')
+    if (error.response?.status === 401 || error.response?.status === 419) {
+      // Unauthorized or CSRF/session mismatch - redirect to login
       const basePath = import.meta.env.BASE_URL || '/'
       const loginPath = `${basePath}login`.replace(/\/+/g, '/') // normalize double slashes
       if (window.location.pathname !== loginPath) {
@@ -53,4 +57,3 @@ api.interceptors.response.use(
 )
 
 export default api
-

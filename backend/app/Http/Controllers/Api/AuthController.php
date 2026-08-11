@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
@@ -54,8 +55,11 @@ class AuthController extends Controller
         // Log login
         $this->auditService->logLogin($user);
 
-        // Create token
-        $token = $user->createToken('auth-token')->plainTextToken;
+        Auth::guard('web')->login($user, $request->boolean('remember'));
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+            $request->session()->regenerateToken();
+        }
 
         return response()->json([
             'success' => true,
@@ -76,7 +80,6 @@ class AuthController extends Controller
                     'profile_picture' => $user->profile_picture,
                     'is_active' => $user->is_active,
                 ],
-                'token' => $token,
             ],
             'message' => 'Login successful'
         ]);
@@ -118,14 +121,16 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         $user = $request->user();
-        
+
         // Log logout
-        $this->auditService->logLogout($user);
-        
-        // Delete current access token if it exists
-        $token = $request->user()->currentAccessToken();
-        if ($token) {
-            $token->delete();
+        if ($user) {
+            $this->auditService->logLogout($user);
+        }
+
+        Auth::guard('web')->logout();
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
         }
 
         return response()->json([
@@ -139,18 +144,14 @@ class AuthController extends Controller
      */
     public function refresh(Request $request)
     {
-        // Delete current token
-        $request->user()->currentAccessToken()->delete();
-
-        // Create new token
-        $token = $request->user()->createToken('auth-token')->plainTextToken;
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+            $request->session()->regenerateToken();
+        }
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'token' => $token,
-            ],
-            'message' => 'Token refreshed successfully'
+            'message' => 'Session refreshed successfully'
         ]);
     }
 
@@ -195,7 +196,7 @@ class AuthController extends Controller
     public function forgotPassword(Request $request): JsonResponse
     {
         $request->validate([
-            'email' => 'required|email|exists:users,email',
+            'email' => 'required|email',
         ]);
 
         try {
@@ -203,26 +204,13 @@ class AuthController extends Controller
                 $request->only('email')
             );
 
-            if ($status === Password::RESET_LINK_SENT) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Password reset link has been sent to your email',
-                    'meta' => [
-                        'timestamp' => now()->toIso8601String(),
-                    ],
-                ]);
-            }
-
             return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'RESET_LINK_FAILED',
-                    'message' => 'Unable to send password reset link',
-                ],
+                'success' => true,
+                'message' => 'If the email address exists, a password reset link has been sent.',
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
                 ],
-            ], 400);
+            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

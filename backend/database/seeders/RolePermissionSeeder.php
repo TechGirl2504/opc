@@ -89,11 +89,9 @@ class RolePermissionSeeder extends Seeder
         $opcDataEntryPerms = [
             'create applications',
             'view applications',
-            'view all applications',
             'edit applications',
             'upload documents',
             'view documents',
-            'assign applications',
         ];
         $opcDataEntryRole->syncPermissions(
             Permission::where('guard_name', 'web')->whereIn('name', $opcDataEntryPerms)->get()

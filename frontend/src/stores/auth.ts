@@ -1,34 +1,31 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi, type LoginCredentials, type User } from '@/api/auth'
+import { pushApi } from '@/api/push'
 import router from '@/router'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
-  const token = ref<string | null>(localStorage.getItem('auth_token') || null)
   const loading = ref(false)
   let ensureUserPromise: Promise<boolean> | null = null
 
-  const isAuthenticated = computed(() => !!token.value)
+  const isAuthenticated = computed(() => !!user.value)
   const isAdmin = computed(() => user.value?.roles?.includes('admin') ?? false)
   const userRole = computed(() => user.value?.roles?.[0] ?? null)
   const userInstitution = computed(() => user.value?.institution)
   const userPermissions = computed(() => user.value?.permissions || [])
 
   function clearAuth() {
-    token.value = null
     user.value = null
-    localStorage.removeItem('auth_token')
   }
 
   /**
-   * Ensure `user` is loaded when a token exists.
+   * Ensure `user` is loaded from the current session cookie.
    *
-   * This prevents "dashboard flashes" on refresh when a stale token is present:
+   * This prevents "dashboard flashes" on refresh when a session is present:
    * we only treat the session as valid after `/auth/user` succeeds.
    */
   async function ensureUserLoaded(): Promise<boolean> {
-    if (!token.value) return false
     if (user.value) return true
 
     if (ensureUserPromise) return ensureUserPromise
@@ -44,7 +41,7 @@ export const useAuthStore = defineStore('auth', () => {
         // ignore, handled below
       }
 
-      // Token is missing/expired/invalid.
+      // Session is missing/expired/invalid.
       clearAuth()
       return false
     })()
@@ -57,11 +54,10 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(credentials: LoginCredentials) {
     loading.value = true
     try {
+      await authApi.csrfCookie()
       const response = await authApi.login(credentials)
       if (response.data.success) {
-        token.value = response.data.data.token
         user.value = response.data.data.user
-        localStorage.setItem('auth_token', token.value)
         return response.data
       }
     } catch (error) {
@@ -73,6 +69,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     try {
+      const subscriptionResponse = await pushApi.list().catch(() => null)
+      const endpoints = subscriptionResponse?.data?.data?.map(subscription => subscription.endpoint) ?? []
+      for (const endpoint of endpoints) {
+        await pushApi.unsubscribe(endpoint).catch(() => null)
+      }
+
       await authApi.logout()
     } catch (error) {
       console.error('Logout error:', error)
@@ -110,8 +112,8 @@ export const useAuthStore = defineStore('auth', () => {
   // Note: data scoping is still enforced by backend (role/institution logic where needed),
   // but page/action visibility should be permission-driven.
   const canViewAllApplications = computed(() => {
-    // OPC roles can see broader sets; keep this as a UI hint.
-    return isAdmin.value || hasAnyRole(['opc_data_entry', 'opc_approver'])
+    // Broader application visibility is reserved for administrators and approvers.
+    return isAdmin.value || hasAnyRole(['opc_approver'])
   })
 
   const canEditApplications = computed(() => hasAnyPermission(['create applications', 'edit applications']))
@@ -128,7 +130,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user,
-    token,
     loading,
     isAuthenticated,
     isAdmin,
@@ -153,4 +154,3 @@ export const useAuthStore = defineStore('auth', () => {
     hasAnyPermission
   }
 })
-

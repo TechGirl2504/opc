@@ -1,5 +1,5 @@
+import axios, { type AxiosResponse } from 'axios'
 import api from './index'
-import type { AxiosResponse } from 'axios'
 
 export interface LoginCredentials {
   username: string
@@ -9,10 +9,28 @@ export interface LoginCredentials {
 export interface AuthResponse {
   success: boolean
   data: {
-    token: string
     user: User
   }
 }
+
+function getSanctumBaseUrl(): string {
+  const apiBase = api.defaults.baseURL ?? '/api/v1'
+
+  if (/^https?:\/\//i.test(apiBase)) {
+    return new URL('/sanctum/csrf-cookie', apiBase).toString()
+  }
+
+  return '/sanctum/csrf-cookie'
+}
+
+const sanctumApi = axios.create({
+  baseURL: getSanctumBaseUrl(),
+  withCredentials: true,
+  withXSRFToken: true,
+  headers: {
+    Accept: 'application/json',
+  },
+})
 
 export interface User {
   id: number
@@ -50,6 +68,9 @@ export interface UpdatePasswordRequest {
 }
 
 export const authApi = {
+  csrfCookie: (): Promise<AxiosResponse> =>
+    sanctumApi.get(''),
+
   login: (credentials: LoginCredentials): Promise<AxiosResponse<AuthResponse>> =>
     api.post('/auth/login', credentials),
   
@@ -71,4 +92,3 @@ export const authApi = {
   updatePassword: (data: UpdatePasswordRequest): Promise<AxiosResponse> =>
     api.post('/auth/update-password', data)
 }
-

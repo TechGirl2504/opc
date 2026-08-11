@@ -11,10 +11,17 @@ class Application extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $appends = [
+        'allowed_actions',
+    ];
+
     protected $fillable = [
         'application_number',
         'full_name',
         'national_id',
+        'district',
+        'traditional_authority',
+        'village',
         'current_name',
         'requested_name',
         'reason',
@@ -29,6 +36,8 @@ class Application extends Model
         'decided_at',
         'approver_send_back_reason',
         'approver_send_back_at',
+        'data_entry_return_reason',
+        'data_entry_return_at',
     ];
 
     protected $casts = [
@@ -37,6 +46,7 @@ class Application extends Model
         'nis_vetting_completed_at' => 'datetime',
         'decided_at' => 'datetime',
         'approver_send_back_at' => 'datetime',
+        'data_entry_return_at' => 'datetime',
     ];
 
     /**
@@ -134,5 +144,18 @@ class Application extends Model
     {
         return $this->hasOne(Decision::class)->latestOfMany();
     }
-}
 
+    /**
+     * Backend-defined allowed actions for the current authenticated user.
+     *
+     * The model exposes this so every API response can carry the same workflow
+     * truth that the controllers enforce.
+     */
+    public function getAllowedActionsAttribute(): array
+    {
+        /** @var \App\Services\ApplicationService $applicationService */
+        $applicationService = app(\App\Services\ApplicationService::class);
+
+        return $applicationService->getAllowedActions($this, auth()->user());
+    }
+}

@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocumentController extends Controller
@@ -78,6 +79,7 @@ class DocumentController extends Controller
     {
         try {
             $application = Application::findOrFail($id);
+            $this->documentService->assertCanAccessApplication($application, $request->user());
             $file = $request->file('file');
 
             $document = $this->documentService->uploadDocument(
@@ -108,11 +110,16 @@ class DocumentController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            Log::error('Failed to upload document', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'UPLOAD_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to upload document',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -195,11 +202,16 @@ class DocumentController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            Log::error('Failed to delete document', [
+                'document_id' => $id,
+                'user_id' => request()->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'DELETE_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to delete document',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -230,11 +242,16 @@ public function download(string $id): StreamedResponse|JsonResponse
                 ],
             ], 404);
         } catch (\Exception $e) {
+            Log::error('Failed to download document', [
+                'document_id' => $id,
+                'user_id' => request()->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'DOWNLOAD_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to download document',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -300,7 +317,7 @@ public function download(string $id): StreamedResponse|JsonResponse
                     'success' => false,
                     'error' => [
                         'code' => 'FILE_READ_ERROR',
-                        'message' => 'Failed to read document file: ' . $fileError->getMessage(),
+                        'message' => 'Failed to read document file',
                     ],
                     'meta' => [
                         'timestamp' => now()->toIso8601String(),
@@ -363,19 +380,17 @@ public function download(string $id): StreamedResponse|JsonResponse
                 ],
             ], 404);
         } catch (\Exception $e) {
-            \Log::error('Preview document error: ' . $e->getMessage(), [
+            Log::error('Preview document error', [
                 'document_id' => $id,
                 'user_id' => request()->user()?->id,
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'PREVIEW_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to preview document',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),

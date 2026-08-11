@@ -16,9 +16,19 @@ declare module 'virtual:pwa-register' {
 }
 
 declare global {
+  interface ImportMetaEnv {
+    readonly VITE_API_BASE_URL?: string
+    readonly VITE_WEB_PUSH_VAPID_PUBLIC_KEY?: string
+  }
+
+  interface ImportMeta {
+    readonly env: ImportMetaEnv
+  }
+
   interface Window {
     __ENV__?: {
       VITE_API_BASE_URL?: string
+      VITE_WEB_PUSH_VAPID_PUBLIC_KEY?: string
     }
   }
 }

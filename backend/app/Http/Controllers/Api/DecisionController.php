@@ -6,16 +6,34 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ApproveApplicationRequest;
 use App\Http\Requests\DenyApplicationRequest;
 use App\Models\Application;
+use App\Services\ApplicationService;
 use App\Services\DecisionService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 
 class DecisionController extends Controller
 {
     protected DecisionService $decisionService;
+    protected ApplicationService $applicationService;
 
-    public function __construct(DecisionService $decisionService)
+    public function __construct(DecisionService $decisionService, ApplicationService $applicationService)
     {
         $this->decisionService = $decisionService;
+        $this->applicationService = $applicationService;
+    }
+
+    private function forbiddenApplicationResponse(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'error' => [
+                'code' => 'UNAUTHORIZED',
+                'message' => 'You do not have permission to access this application',
+            ],
+            'meta' => [
+                'timestamp' => now()->toIso8601String(),
+            ],
+        ], 403);
     }
 
     /**
@@ -25,6 +43,9 @@ class DecisionController extends Controller
     {
         try {
             $application = Application::findOrFail($id);
+            if (!$this->applicationService->canAccessApplication($application, request()->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
             $decision = $this->decisionService->approveApplication(
                 $application,
                 $request->user(),
@@ -51,11 +72,16 @@ class DecisionController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            Log::error('Failed to approve application', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'APPROVAL_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to approve application',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -71,6 +97,9 @@ class DecisionController extends Controller
     {
         try {
             $application = Application::findOrFail($id);
+            if (!$this->applicationService->canAccessApplication($application, request()->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
             $decision = $this->decisionService->denyApplication(
                 $application,
                 $request->user(),
@@ -97,11 +126,16 @@ class DecisionController extends Controller
                 ],
             ], 404);
         } catch (\Exception $e) {
+            Log::error('Failed to deny application', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'DENIAL_FAILED',
-                    'message' => $e->getMessage(),
+                    'message' => 'Failed to deny application',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -117,6 +151,9 @@ class DecisionController extends Controller
     {
         try {
             $application = Application::findOrFail($id);
+            if (!$this->applicationService->canAccessApplication($application, request()->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
             $decisions = $this->decisionService->getDecisionHistory($application);
 
             return response()->json([

@@ -24,8 +24,7 @@ class SendNotificationListener
      */
     public function handleApplicationCreated(ApplicationCreated $event): void
     {
-        // Notifications for application creation are handled in ApplicationService
-        // This listener can be used for additional notifications if needed
+        // Notifications for application creation are handled directly in ApplicationService
     }
 
     /**
@@ -33,14 +32,7 @@ class SendNotificationListener
      */
     public function handleApplicationStatusChanged(ApplicationStatusChanged $event): void
     {
-        $oldStatus = $event->oldStatusId ? \App\Models\ApplicationStatus::find($event->oldStatusId)?->name : 'Unknown';
-        $newStatus = $event->newStatusId ? \App\Models\ApplicationStatus::find($event->newStatusId)?->name : 'Unknown';
-        
-        $this->notificationService->notifyStatusChanged(
-            $event->application,
-            $oldStatus,
-            $newStatus
-        );
+        // Workflow notifications are sent at the exact service transition points.
     }
 
     /**

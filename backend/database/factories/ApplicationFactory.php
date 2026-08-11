@@ -22,6 +22,9 @@ class ApplicationFactory extends Factory
         return [
             'full_name' => fake()->name(),
             'national_id' => fake()->regexify('[A-Z0-9]{8}'),
+            'district' => fake()->city(),
+            'traditional_authority' => fake()->lastName() . ' T/A',
+            'village' => fake()->citySuffix() . ' Village',
             'current_name' => fake()->optional()->name(),
             'requested_name' => fake()->name(),
             'reason' => fake()->paragraph(),

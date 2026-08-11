@@ -22,13 +22,14 @@ class AuthControllerTest extends TestCase
 
     public function test_user_can_login_with_valid_credentials(): void
     {
-        $user = User::factory()->create([
+        User::factory()->create([
             'username' => 'testuser',
             'password' => bcrypt('password123'),
             'is_active' => true,
         ]);
 
-        $response = $this->postJson('/api/v1/auth/login', [
+        $response = $this->withSession([])
+            ->postJson('/api/v1/auth/login', [
             'username' => 'testuser',
             'password' => 'password123',
         ]);
@@ -38,7 +39,6 @@ class AuthControllerTest extends TestCase
                 'success',
                 'data' => [
                     'user',
-                    'token',
                 ],
             ])
             ->assertJson(['success' => true]);
@@ -91,11 +91,9 @@ class AuthControllerTest extends TestCase
     public function test_user_can_logout(): void
     {
         $user = User::factory()->create();
-        
-        // Create a token for the user
-        $token = $user->createToken('test-token')->plainTextToken;
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+        $response = $this->withSession([])
+            ->actingAs($user, 'web')
             ->postJson('/api/v1/auth/logout');
 
         $response->assertStatus(200)

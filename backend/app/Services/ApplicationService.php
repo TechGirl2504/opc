@@ -14,10 +14,271 @@ class ApplicationService
     protected AuditService $auditService;
     protected NotificationService $notificationService;
 
+    private const FINAL_STATUSES = ['approved', 'denied', 'archived'];
+    private const CREATOR_EDITABLE_STATUSES = ['pending', 'returned_to_data_entry'];
+    private const ADMIN_EDITABLE_STATUSES = ['pending'];
+
     public function __construct(AuditService $auditService, NotificationService $notificationService)
     {
         $this->auditService = $auditService;
         $this->notificationService = $notificationService;
+    }
+
+    /**
+     * Check whether a user can access a specific application.
+     */
+    public function canAccessApplication(Application $application, ?User $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->hasPermissionTo('view all applications')) {
+            return true;
+        }
+
+        $isCreator = ($application->created_by !== null) && ((int) $application->created_by === (int) $user->id);
+        $isAssignedPolice = ($application->assigned_police_officer_id !== null) && ((int) $application->assigned_police_officer_id === (int) $user->id);
+        $isAssignedNis = ($application->assigned_nis_officer_id !== null) && ((int) $application->assigned_nis_officer_id === (int) $user->id);
+        $isAssignedApprover = ($application->assigned_opc_approver_id !== null) && ((int) $application->assigned_opc_approver_id === (int) $user->id);
+
+        return $isCreator || $isAssignedPolice || $isAssignedNis || $isAssignedApprover;
+    }
+
+    private function isApproverUser(User $user): bool
+    {
+        return $user->hasRole('opc_approver');
+    }
+
+    /**
+     * Resolve the workflow actions that should be visible for the current user.
+     */
+    public function getAllowedActions(Application $application, ?User $user): array
+    {
+        if (!$user || !$application->status) {
+            return [];
+        }
+
+        $statusCode = $application->status->code;
+        $isCreator = ($application->created_by !== null) && ((int) $application->created_by === (int) $user->id);
+        $isAssignedPolice = ($application->assigned_police_officer_id !== null) && ((int) $application->assigned_police_officer_id === (int) $user->id);
+        $isAssignedNis = ($application->assigned_nis_officer_id !== null) && ((int) $application->assigned_nis_officer_id === (int) $user->id);
+        $isAssignedApprover = ($application->assigned_opc_approver_id !== null) && ((int) $application->assigned_opc_approver_id === (int) $user->id);
+        $isAdmin = $user->hasRole('admin');
+
+        $allowedActions = [];
+
+        if ($this->canAccessApplication($application, $user)) {
+            $allowedActions[] = 'view_application';
+        }
+
+        if ($this->canEditApplicationWorkflow($application, $user, $isCreator, $isAdmin, $statusCode)) {
+            $allowedActions[] = 'edit_application';
+        }
+
+        if ($this->canHandleApproverSendBackWorkflow($application, $user, $isAdmin, $statusCode)) {
+            $allowedActions[] = 'handle_approver_send_back';
+        }
+
+        if ($this->canDeleteApplicationWorkflow($application, $user, $isCreator, $isAdmin, $statusCode)) {
+            $allowedActions[] = 'delete_application';
+        }
+
+        if ($user->hasPermissionTo('upload documents') && !in_array($statusCode, self::FINAL_STATUSES, true)) {
+            $allowedActions[] = 'upload_documents';
+        }
+
+        if ($user->hasPermissionTo('view documents')) {
+            $allowedActions[] = 'view_documents';
+        }
+
+        if ($user->hasPermissionTo('download documents')) {
+            $allowedActions[] = 'download_documents';
+        }
+
+        if ($user->hasPermissionTo('delete documents') && !in_array($statusCode, self::FINAL_STATUSES, true)) {
+            $allowedActions[] = 'delete_documents';
+        }
+
+        if ($user->hasPermissionTo('assign applications') && $this->canAssignPoliceWorkflow($application, $statusCode)) {
+            $allowedActions[] = 'assign_police_officer';
+        }
+
+        if ($user->hasPermissionTo('assign applications') && $this->canAssignNisWorkflow($application, $statusCode)) {
+            $allowedActions[] = 'assign_nis_officer';
+        }
+
+        if ($user->hasPermissionTo('conduct police vetting') && $isAssignedPolice && $this->canConductPoliceVettingWorkflow($application)) {
+            $allowedActions[] = 'conduct_police_vetting';
+        }
+
+        if ($user->hasPermissionTo('conduct nis vetting') && $isAssignedNis && $this->canConductNisVettingWorkflow($application)) {
+            $allowedActions[] = 'conduct_nis_vetting';
+        }
+
+        if ($user->hasPermissionTo('send back vetting') && $this->canSendBackPoliceWorkflow($application)) {
+            $allowedActions[] = 'send_back_police_vetting';
+        }
+
+        if ($user->hasPermissionTo('send back vetting') && $this->canSendBackNisWorkflow($application)) {
+            $allowedActions[] = 'send_back_nis_vetting';
+        }
+
+        if ($user->hasPermissionTo('approve applications') && $this->canForwardToApprovalWorkflow($application)) {
+            $allowedActions[] = 'forward_to_approval';
+        }
+
+        if ($this->isApproverUser($user) && $statusCode === 'pending_approval') {
+            $allowedActions[] = 'approve_application';
+            $allowedActions[] = 'send_back_to_admin';
+        }
+
+        if ($this->isApproverUser($user) && $statusCode === 'pending_approval') {
+            $allowedActions[] = 'deny_application';
+        }
+
+        if (
+            ($user->hasRole('admin') || $user->hasPermissionTo('manage application statuses'))
+            && $statusCode === 'pending'
+            && !$application->assigned_police_officer_id
+            && !$application->assigned_nis_officer_id
+            && !$application->assigned_opc_approver_id
+        ) {
+            $allowedActions[] = 'send_back_to_data_entry';
+        }
+
+        return array_values(array_unique($allowedActions));
+    }
+
+    public function canEditApplication(Application $application, User $user): bool
+    {
+        return in_array('edit_application', $this->getAllowedActions($application, $user), true);
+    }
+
+    public function canDeleteApplication(Application $application, User $user): bool
+    {
+        return in_array('delete_application', $this->getAllowedActions($application, $user), true);
+    }
+
+    private function canEditApplicationWorkflow(Application $application, User $user, bool $isCreator, bool $isAdmin, string $statusCode): bool
+    {
+        $isAdminReviewAfterApproverReturn = $isAdmin
+            && $statusCode === 'opc_review'
+            && !empty($application->approver_send_back_reason);
+
+        if (
+            !$isAdminReviewAfterApproverReturn
+            && ($application->assigned_police_officer_id || $application->assigned_nis_officer_id || $application->assigned_opc_approver_id)
+        ) {
+            return false;
+        }
+
+        if (in_array($statusCode, self::CREATOR_EDITABLE_STATUSES, true)) {
+            return $isCreator && $user->hasPermissionTo('create applications');
+        }
+
+        if ($isAdminReviewAfterApproverReturn) {
+            return true;
+        }
+
+        if (in_array($statusCode, self::ADMIN_EDITABLE_STATUSES, true)) {
+            return $isAdmin;
+        }
+
+        return false;
+    }
+
+    private function canHandleApproverSendBackWorkflow(Application $application, ?User $user, bool $isAdmin, string $statusCode): bool
+    {
+        return $isAdmin
+            && $user !== null
+            && $statusCode === 'opc_review'
+            && !empty($application->approver_send_back_reason);
+    }
+
+    private function canDeleteApplicationWorkflow(Application $application, User $user, bool $isCreator, bool $isAdmin, string $statusCode): bool
+    {
+        if ($application->assigned_police_officer_id || $application->assigned_nis_officer_id || $application->assigned_opc_approver_id) {
+            return false;
+        }
+
+        if (!in_array($statusCode, ['pending'], true)) {
+            return false;
+        }
+
+        return $user->hasPermissionTo('delete applications') && ($isCreator || $isAdmin);
+    }
+
+    private function canAssignPoliceWorkflow(Application $application, string $statusCode): bool
+    {
+        if (!in_array($statusCode, ['pending', 'police_vetting'], true)) {
+            if ($statusCode !== 'opc_review') {
+                return false;
+            }
+
+            $policeVetting = $application->policeVetting;
+            if ($policeVetting && $policeVetting->status?->code === 'completed') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function canAssignNisWorkflow(Application $application, string $statusCode): bool
+    {
+        if (in_array($statusCode, ['police_completed', 'nis_vetting'], true)) {
+            return true;
+        }
+
+        if ($statusCode !== 'opc_review') {
+            return false;
+        }
+
+        $policeVetting = $application->policeVetting;
+        $nisVetting = $application->nisVetting;
+
+        return $policeVetting && $policeVetting->status?->code === 'completed'
+            && (!$nisVetting || $nisVetting->status?->code !== 'completed');
+    }
+
+    private function canConductPoliceVettingWorkflow(Application $application): bool
+    {
+        $statusCode = $application->status->code ?? null;
+        if (in_array($statusCode, ['pending', 'police_vetting'], true)) {
+            return true;
+        }
+
+        return $application->policeVetting?->status?->code === 'sent_back';
+    }
+
+    private function canConductNisVettingWorkflow(Application $application): bool
+    {
+        $statusCode = $application->status->code ?? null;
+        if ($statusCode === 'nis_vetting') {
+            return true;
+        }
+
+        return $application->nisVetting?->status?->code === 'sent_back';
+    }
+
+    private function canSendBackPoliceWorkflow(Application $application): bool
+    {
+        return ($application->status->code ?? null) === 'opc_review'
+            && $application->policeVetting?->status?->code === 'completed';
+    }
+
+    private function canSendBackNisWorkflow(Application $application): bool
+    {
+        return ($application->status->code ?? null) === 'opc_review'
+            && $application->nisVetting?->status?->code === 'completed';
+    }
+
+    private function canForwardToApprovalWorkflow(Application $application): bool
+    {
+        return ($application->status->code ?? null) === 'opc_review'
+            && $application->policeVetting?->status?->code === 'completed'
+            && $application->nisVetting?->status?->code === 'completed';
     }
     /**
      * Get applications with filters, search, and pagination
@@ -113,6 +374,9 @@ class ApplicationService
             $application = Application::create([
                 'full_name' => $data['full_name'],
                 'national_id' => $data['national_id'] ?? null,
+                'district' => $data['district'],
+                'traditional_authority' => $data['traditional_authority'],
+                'village' => $data['village'],
                 'current_name' => $data['current_name'] ?? null,
                 'requested_name' => $data['requested_name'],
                 'reason' => $data['reason'],
@@ -123,6 +387,9 @@ class ApplicationService
 
             // Log audit
             $this->auditService->logCreate($user, Application::class, $application->id, $application->toArray());
+
+            // Notify admins that a new application has been received
+            $this->notificationService->notifyApplicationReceivedByAdmins($application, $user);
 
             DB::commit();
             return $application->load(['status', 'createdBy']);
@@ -141,14 +408,35 @@ class ApplicationService
         DB::beginTransaction();
         try {
             $oldValues = $application->toArray();
+            $returnedStatus = ApplicationStatus::where('code', 'returned_to_data_entry')->first();
+            $pendingStatus = ApplicationStatus::where('code', 'pending')->first();
 
             $application->update([
                 'full_name' => $data['full_name'] ?? $application->full_name,
                 'national_id' => $data['national_id'] ?? $application->national_id,
+                'district' => $data['district'] ?? $application->district,
+                'traditional_authority' => $data['traditional_authority'] ?? $application->traditional_authority,
+                'village' => $data['village'] ?? $application->village,
                 'current_name' => $data['current_name'] ?? $application->current_name,
                 'requested_name' => $data['requested_name'] ?? $application->requested_name,
                 'reason' => $data['reason'] ?? $application->reason,
             ]);
+
+            if (
+                $returnedStatus
+                && (int) $application->status_id === (int) $returnedStatus->id
+                && $user->hasPermissionTo('create applications')
+            ) {
+                $application->update([
+                    'status_id' => $pendingStatus?->id ?? $application->status_id,
+                    'data_entry_return_reason' => null,
+                    'data_entry_return_at' => null,
+                    'submitted_at' => now(),
+                ]);
+
+                // Notify admins that a corrected application has been resubmitted
+                $this->notificationService->notifyApplicationReceivedByAdmins($application, $user);
+            }
 
             // Log audit
             $this->auditService->logUpdate($user, Application::class, $application->id, $oldValues, $application->toArray());
@@ -336,6 +624,10 @@ class ApplicationService
     {
         DB::beginTransaction();
         try {
+            if (!$this->isApproverUser($user)) {
+                throw new \Exception('Only the OPC approver can send applications back to admin');
+            }
+
             // Verify application is in pending_approval status
             if ($application->status->code !== 'pending_approval') {
                 throw new \Exception('Application must be in pending approval status to send back to admin');
@@ -371,7 +663,7 @@ class ApplicationService
     /**
      * Admin handles approver send-back: can send to police, send to NIS, or allow editing
      */
-    public function handleApproverSendBack(Application $application, string $action, ?string $reason = null, User $user): Application
+    public function handleApproverSendBack(Application $application, string $action, User $user, ?string $reason = null): Application
     {
         DB::beginTransaction();
         try {
@@ -389,6 +681,9 @@ class ApplicationService
 
             switch ($action) {
                 case 'send_to_police':
+                    if (!$application->assignedPoliceOfficer) {
+                        throw new \Exception('No assigned police officer is available for this application');
+                    }
                     // Send back to police vetting
                     $policeVettingStatus = ApplicationStatus::where('code', 'police_vetting')->firstOrFail();
                     $application->update([
@@ -397,12 +692,15 @@ class ApplicationService
                         'approver_send_back_at' => null,
                     ]);
                     // Send notification to assigned police officer
-                    if ($application->assigned_police_officer) {
-                        $this->notificationService->notifyApplicationSentBackToOfficer($application, $application->assigned_police_officer, 'police', $reason);
+                    if ($application->assignedPoliceOfficer) {
+                        $this->notificationService->notifyApplicationSentBackToOfficer($application, $application->assignedPoliceOfficer, 'police', $reason);
                     }
                     break;
 
                 case 'send_to_nis':
+                    if (!$application->assignedNisOfficer) {
+                        throw new \Exception('No assigned NIS officer is available for this application');
+                    }
                     // Send back to NIS vetting
                     $nisVettingStatus = ApplicationStatus::where('code', 'nis_vetting')->firstOrFail();
                     $application->update([
@@ -411,22 +709,13 @@ class ApplicationService
                         'approver_send_back_at' => null,
                     ]);
                     // Send notification to assigned NIS officer
-                    if ($application->assigned_nis_officer) {
-                        $this->notificationService->notifyApplicationSentBackToOfficer($application, $application->assigned_nis_officer, 'nis', $reason);
+                    if ($application->assignedNisOfficer) {
+                        $this->notificationService->notifyApplicationSentBackToOfficer($application, $application->assignedNisOfficer, 'nis', $reason);
                     }
                     break;
 
-                case 'allow_editing':
-                    // Keep in opc_review but clear send-back reason to allow admin editing
-                    $application->update([
-                        'approver_send_back_reason' => null,
-                        'approver_send_back_at' => null,
-                    ]);
-                    // Application stays in opc_review, admin can now edit
-                    break;
-
                 default:
-                    throw new \Exception('Invalid action. Must be: send_to_police, send_to_nis, or allow_editing');
+                    throw new \Exception('Invalid action. Must be: send_to_police or send_to_nis');
             }
 
             // Log audit
@@ -440,5 +729,40 @@ class ApplicationService
             throw $e;
         }
     }
-}
 
+    /**
+     * Send application back to data entry from pending review.
+     */
+    public function sendBackToDataEntry(Application $application, string $reason, User $user): Application
+    {
+        DB::beginTransaction();
+        try {
+            if ($application->status->code !== 'pending') {
+                throw new \Exception('Application must be in pending status to send back to data entry');
+            }
+
+            if ($application->assigned_police_officer_id || $application->assigned_nis_officer_id || $application->assigned_opc_approver_id) {
+                throw new \Exception('Assigned applications cannot be sent back to data entry');
+            }
+
+            $returnedStatus = ApplicationStatus::where('code', 'returned_to_data_entry')->firstOrFail();
+            $oldValues = $application->toArray();
+
+            $application->update([
+                'status_id' => $returnedStatus->id,
+                'data_entry_return_reason' => $reason,
+                'data_entry_return_at' => now(),
+            ]);
+
+            $this->auditService->logStatusChange($user, Application::class, $application->id, $oldValues['status_id'] ?? null, $application->status_id);
+            $this->notificationService->notifyApplicationSentBackToDataEntry($application, $user, $reason);
+
+            DB::commit();
+            return $application->fresh(['status']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to send application back to data entry: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+}

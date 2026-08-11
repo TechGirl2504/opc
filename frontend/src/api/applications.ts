@@ -6,6 +6,9 @@ export interface Application {
   application_number: string
   full_name: string
   national_id: string
+  district: string
+  traditional_authority: string
+  village: string
   current_name: string
   requested_name: string
   reason: string
@@ -40,6 +43,9 @@ export interface Application {
   decided_at?: string
   approver_send_back_reason?: string
   approver_send_back_at?: string
+  data_entry_return_reason?: string
+  data_entry_return_at?: string
+  allowed_actions?: string[]
   created_at: string
   updated_at: string
 }
@@ -60,6 +66,9 @@ export interface ApplicationListParams {
 export interface CreateApplicationRequest {
   full_name: string
   national_id: string
+  district: string
+  traditional_authority: string
+  village: string
   current_name: string
   requested_name: string
   reason: string
@@ -110,10 +119,12 @@ export const applicationsApi = {
   sendBackToAdmin: (id: number, reason: string): Promise<AxiosResponse> =>
     api.post(`/applications/${id}/send-back-to-admin`, { reason }),
 
-  handleApproverSendBack: (id: number, action: 'send_to_police' | 'send_to_nis' | 'allow_editing', reason?: string): Promise<AxiosResponse> =>
+  sendBackToDataEntry: (id: number, reason: string): Promise<AxiosResponse> =>
+    api.post(`/applications/${id}/send-back-to-data-entry`, { reason }),
+
+  handleApproverSendBack: (id: number, action: 'send_to_police' | 'send_to_nis', reason?: string): Promise<AxiosResponse> =>
     api.post(`/applications/${id}/handle-approver-send-back`, { action, reason }),
   
   statusHistory: (id: number): Promise<AxiosResponse> =>
     api.get(`/applications/${id}/status`)
 }
-

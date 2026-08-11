@@ -1,19 +1,35 @@
 <template>
-  <div>
-    <div class="d-flex justify-space-between align-center mb-4">
-      <h1 class="text-h4">Applications</h1>
-      <v-btn
-        v-if="authStore.canEditApplications"
-        color="primary"
-        prepend-icon="mdi-plus"
-        @click="$router.push({ name: 'CreateApplication' })"
-      >
-        Create Application
-      </v-btn>
-    </div>
+  <div class="gov-page">
+    <v-sheet class="gov-hero">
+      <div class="gov-hero__inner">
+        <div>
+          <div class="gov-hero__eyebrow">Case register</div>
+          <h1 class="text-h4 text-md-h3 font-weight-bold mb-2">Applications</h1>
+          <div class="text-body-2 text-medium-emphasis">
+            Search, filter, and manage applications through the workflow.
+          </div>
+        </div>
+        <v-btn
+          v-if="authStore.canEditApplications"
+          class="gov-hero__action"
+          color="primary"
+          variant="flat"
+          prepend-icon="mdi-plus"
+          @click="$router.push({ name: 'CreateApplication' })"
+        >
+          Create Application
+        </v-btn>
+      </div>
+    </v-sheet>
 
     <!-- Filters -->
-    <v-card class="mb-4">
+    <v-card class="gov-card mb-4" elevation="2">
+      <v-card-title class="gov-card__title">
+        <div>
+          <div class="text-h6">Filters</div>
+          <div class="text-caption text-medium-emphasis">Narrow records by status, date, or text</div>
+        </div>
+      </v-card-title>
       <v-card-text>
         <v-row>
           <v-col cols="12" md="4">
@@ -62,65 +78,80 @@
     </v-card>
 
     <!-- Applications Table -->
-    <v-card>
+    <v-card class="gov-card" elevation="2">
       <v-card-text>
-        <v-data-table
-          :headers="headers"
-          :items="applications"
-          :loading="loading"
-          :items-per-page="pagination.per_page"
-          :page="pagination.current_page"
-          :server-items-length="pagination.total"
-          @update:page="handlePageChange"
-          @update:items-per-page="handlePerPageChange"
-          item-value="id"
-        >
-          <template v-slot:item.application_number="{ item }">
-            <router-link
-              :to="{ name: 'ApplicationDetail', params: { id: item.id } }"
-              class="text-decoration-none text-primary"
-            >
-              {{ item.application_number }}
-            </router-link>
-          </template>
+        <div class="table-shell">
+          <v-data-table
+            :headers="headers"
+            :items="applications"
+            :loading="loading"
+            :items-per-page="pagination.per_page"
+            :page="pagination.current_page"
+            :server-items-length="pagination.total"
+            @update:page="handlePageChange"
+            @update:items-per-page="handlePerPageChange"
+            item-value="id"
+            no-data-text="No applications found for the selected filters"
+          >
+            <template v-slot:item.application_number="{ item }">
+              <router-link
+                :to="{ name: 'ApplicationDetail', params: { id: item.id } }"
+                class="text-decoration-none text-primary"
+              >
+                {{ item.application_number }}
+              </router-link>
+            </template>
 
-          <template v-slot:item.status="{ item }">
-            <v-chip
-              :color="getStatusColor(item.status?.code)"
-              size="small"
-            >
-              {{ item.status?.name }}
-            </v-chip>
-          </template>
+            <template v-slot:item.district="{ item }">
+              {{ item.district }}
+            </template>
 
-          <template v-slot:item.created_at="{ item }">
-            {{ formatDate(item.created_at) }}
-          </template>
+            <template v-slot:item.traditional_authority="{ item }">
+              {{ item.traditional_authority }}
+            </template>
 
-          <template v-slot:item.actions="{ item }">
-            <v-btn
-              icon="mdi-eye"
-              size="small"
-              variant="text"
-              @click="$router.push({ name: 'ApplicationDetail', params: { id: item.id } })"
-            />
-            <v-btn
-              v-if="authStore.canEditApplications && canEditItem(item)"
-              icon="mdi-pencil"
-              size="small"
-              variant="text"
-              @click="editApplication(item)"
-            />
-            <v-btn
-              v-if="authStore.canDeleteApplications"
-              icon="mdi-delete"
-              size="small"
-              variant="text"
-              color="error"
-              @click="deleteApplication(item)"
-            />
-          </template>
-        </v-data-table>
+            <template v-slot:item.village="{ item }">
+              {{ item.village }}
+            </template>
+
+            <template v-slot:item.status="{ item }">
+              <v-chip
+                :color="getStatusColor(item.status?.code)"
+                size="small"
+              >
+                {{ item.status?.name }}
+              </v-chip>
+            </template>
+
+            <template v-slot:item.created_at="{ item }">
+              {{ formatDate(item.created_at) }}
+            </template>
+
+            <template v-slot:item.actions="{ item }">
+              <v-btn
+                icon="mdi-eye"
+                size="small"
+                variant="text"
+                @click="$router.push({ name: 'ApplicationDetail', params: { id: item.id } })"
+              />
+              <v-btn
+                v-if="canEditItem(item)"
+                icon="mdi-pencil"
+                size="small"
+                variant="text"
+                @click="editApplication(item)"
+              />
+              <v-btn
+                v-if="canDeleteItem(item)"
+                icon="mdi-delete"
+                size="small"
+                variant="text"
+                color="error"
+                @click="deleteApplication(item)"
+              />
+            </template>
+          </v-data-table>
+        </div>
       </v-card-text>
     </v-card>
   </div>
@@ -159,7 +190,9 @@ const pagination = reactive({
 const headers = [
   { title: 'Application #', key: 'application_number', sortable: false },
   { title: 'Full Name', key: 'full_name' },
-  { title: 'Requested Name', key: 'requested_name' },
+  { title: 'District', key: 'district', sortable: false },
+  { title: 'T/A', key: 'traditional_authority', sortable: false },
+  { title: 'Village', key: 'village', sortable: false },
   { title: 'Status', key: 'status', sortable: false },
   { title: 'Created', key: 'created_at' },
   { title: 'Actions', key: 'actions', sortable: false }
@@ -168,11 +201,16 @@ const headers = [
 function getStatusColor(statusCode: string) {
   const colors: Record<string, string> = {
     'pending': 'warning',
+    'returned_to_data_entry': 'orange',
+    'opc_review': 'purple',
+    'police_completed': 'teal',
+    'nis_completed': 'teal',
+    'pending_approval': 'indigo',
     'approved': 'success',
     'denied': 'error',
-    'under_review': 'info',
     'police_vetting': 'primary',
-    'nis_vetting': 'primary'
+    'nis_vetting': 'primary',
+    'archived': 'grey'
   }
   return colors[statusCode] || 'grey'
 }
@@ -228,19 +266,15 @@ function handlePerPageChange(perPage: number) {
 }
 
 function canEditItem(item: Application): boolean {
-  // Permission-based UI gating (backend still enforces actual rules)
-  if (authStore.hasPermission('edit applications')) return true
+  return item.allowed_actions?.includes('edit_application') ?? false
+}
 
-  // Allow creators with create permission to edit their own (matches typical data-entry workflow)
-  if (authStore.hasPermission('create applications')) {
-    return item.created_by?.id === authStore.user?.id
-  }
-
-  return false
+function canDeleteItem(item: Application): boolean {
+  return item.allowed_actions?.includes('delete_application') ?? false
 }
 
 function editApplication(application: Application) {
-  router.push({ name: 'ApplicationDetail', params: { id: application.id } })
+  router.push({ name: 'EditApplication', params: { id: application.id } })
 }
 
 async function deleteApplication(application: Application) {
@@ -262,3 +296,33 @@ onMounted(() => {
   // TODO: Fetch status options from API
 })
 </script>
+
+<style scoped>
+.gov-hero {
+  margin-bottom: 20px;
+}
+
+.gov-hero__inner {
+  align-items: center;
+}
+
+.gov-hero__action {
+  flex-shrink: 0;
+}
+
+.table-shell {
+  overflow-x: auto;
+}
+
+@media (max-width: 960px) {
+  .table-shell :deep(.v-table) {
+    min-width: 900px;
+  }
+}
+
+@media (max-width: 600px) {
+  .gov-hero__action {
+    width: 100%;
+  }
+}
+</style>
