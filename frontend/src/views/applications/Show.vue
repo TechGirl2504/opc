@@ -1122,14 +1122,7 @@ function hasAllowedAction(action: string): boolean {
   return allowedActions.value.includes(action)
 }
 
-const canEditApplication = computed(() => {
-  if (hasAllowedAction('edit_application')) return true
-  return authStore.isAdmin
-    && application.value?.status?.code === 'pending'
-    && !application.value?.assigned_police_officer
-    && !application.value?.assigned_nis_officer
-    && !application.value?.assigned_opc_approver
-})
+const canEditApplication = computed(() => hasAllowedAction('edit_application'))
 const canDoPoliceVetting = computed(() => hasAllowedAction('conduct_police_vetting'))
 const canDoNisVetting = computed(() => hasAllowedAction('conduct_nis_vetting'))
 const canSendBackPolice = computed(() => hasAllowedAction('send_back_police_vetting'))
@@ -1685,7 +1678,12 @@ async function assignPoliceOfficer() {
     toast.success('Application assigned to police officer successfully')
     showAssignPoliceDialog.value = false
     selectedPoliceOfficer.value = null
-    await fetchApplication()
+    try {
+      await fetchApplication()
+    } catch (refreshError) {
+      console.warn('Assigned police officer, but failed to refresh application:', refreshError)
+      toast.info('Assignment saved. Refresh the page to load the latest application state.')
+    }
   } catch (error: any) {
     console.error('Assign police error:', error)
     const errorMessage = error.response?.data?.error?.message ||
@@ -1708,7 +1706,12 @@ async function assignNisOfficer() {
     toast.success('Application assigned to NIS officer successfully')
     showAssignNisDialog.value = false
     selectedNisOfficer.value = null
-    await fetchApplication()
+    try {
+      await fetchApplication()
+    } catch (refreshError) {
+      console.warn('Assigned NIS officer, but failed to refresh application:', refreshError)
+      toast.info('Assignment saved. Refresh the page to load the latest application state.')
+    }
   } catch (error: any) {
     console.error('Assign NIS error:', error)
     const errorMessage = error.response?.data?.error?.message ||

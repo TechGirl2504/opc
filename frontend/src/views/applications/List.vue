@@ -266,12 +266,7 @@ function handlePerPageChange(perPage: number) {
 }
 
 function canEditItem(item: Application): boolean {
-  if (item.allowed_actions?.includes('edit_application')) return true
-  return authStore.isAdmin
-    && item.status?.code === 'pending'
-    && !item.assigned_police_officer
-    && !item.assigned_nis_officer
-    && !item.assigned_opc_approver
+  return item.allowed_actions?.includes('edit_application') ?? false
 }
 
 function canDeleteItem(item: Application): boolean {

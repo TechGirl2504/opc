@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
+import { initPwaInstall } from '@/composables/usePwaInstall'
 import '@/styles/theme.css'
 
 // Vuetify
@@ -17,6 +18,7 @@ import Toast from 'vue-toastification'
 import 'vue-toastification/dist/index.css'
 
 // PWA Service Worker - will be registered if vite-plugin-pwa is installed
+initPwaInstall()
 
 const vuetify = createVuetify({
   components,

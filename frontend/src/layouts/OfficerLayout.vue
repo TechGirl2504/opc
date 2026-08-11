@@ -8,7 +8,7 @@
       class="gov-drawer"
     >
       <v-list-item
-        prepend-avatar="/logo.png"
+        prepend-avatar="/cnmis-logo.svg"
         :title="authStore.user?.username || 'Officer'"
         :subtitle="institutionSubtitle"
         nav
@@ -96,6 +96,7 @@
 
       <v-spacer />
 
+      <PwaInstallButton />
       <Notifications />
 
       <v-menu>
@@ -131,6 +132,7 @@ import { useDisplay } from 'vuetify'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
+import PwaInstallButton from '@/components/PwaInstallButton.vue'
 import Notifications from '@/components/Notifications.vue'
 
 const router = useRouter()

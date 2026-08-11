@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#1976d2" rx="64"/>
-  <text x="256" y="320" font-family="Arial, sans-serif" font-size="180" font-weight="bold" fill="white" text-anchor="middle">CNMIS</text>
+  <path fill="#000" d="M256 72c60 0 121 20 168 44v133c0 98-69 188-168 224-99-36-168-126-168-224V116c47-24 108-44 168-44zm0 28c-51 0-103 17-143 38v111c0 85 60 162 143 195 83-33 143-110 143-195V138c-40-21-92-38-143-38z"/>
+  <path fill="#000" d="M203 196c0-8 6-14 14-14h78c8 0 14 6 14 14v120c0 8-6 14-14 14h-78c-8 0-14-6-14-14V196zm22 20v12h66v-12h-66zm0 28v12h66v-12h-66zm0 28v12h48v-12h-48z"/>
+  <path fill="#000" d="M248 305l-17-17 10-10 7 7 30-30 10 10-40 40z"/>
 </svg>
-

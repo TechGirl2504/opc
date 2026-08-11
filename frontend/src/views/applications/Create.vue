@@ -366,16 +366,13 @@ const applicationId = computed(() => {
 
 const isEditMode = computed(() => !!applicationId.value)
 
-const isAdminReviewAfterApproverReturn = computed(() => {
-  return authStore.isAdmin
-    && applicationData.value?.status?.code === 'opc_review'
-    && !!applicationData.value?.approver_send_back_reason
+const canEditLoadedApplication = computed(() => {
+  return applicationData.value?.allowed_actions?.includes('edit_application') ?? false
 })
 
 const isEditLocked = computed(() => {
   if (!applicationData.value) return false
-  if (isAdminReviewAfterApproverReturn.value) return false
-  return !!(applicationData.value.assigned_police_officer || applicationData.value.assigned_nis_officer)
+  return !canEditLoadedApplication.value
 })
 
 const form = reactive({
@@ -549,12 +546,7 @@ async function loadApplication() {
       const app = response.data.data as Application
       applicationData.value = app
 
-      // Block direct edits for assigned applications unless admin is reviewing an approver send-back.
-      const canAdminEditAfterSendBack = authStore.isAdmin
-        && app.status?.code === 'opc_review'
-        && !!app.approver_send_back_reason
-
-      if (!canAdminEditAfterSendBack && (app.assigned_police_officer || app.assigned_nis_officer)) {
+      if (!app.allowed_actions?.includes('edit_application')) {
         toast.error('Cannot edit application that has been assigned to an officer')
         router.push({ name: 'ApplicationDetail', params: { id: applicationId.value } })
         return
@@ -823,7 +815,7 @@ async function handleSubmit() {
       }
 
       // Check if user can edit this application
-      if (!authStore.canEditApplications) {
+      if (!canEditLoadedApplication.value) {
         toast.error('You do not have permission to edit applications')
         return
       }

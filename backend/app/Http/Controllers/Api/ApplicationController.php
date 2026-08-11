@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreApplicationRequest;
 use App\Http\Requests\SendBackToDataEntryRequest;
 use App\Http\Requests\UpdateApplicationRequest;
+use App\Http\Resources\ApplicationResource;
 use App\Models\Application;
 use App\Services\ApplicationService;
 use App\Services\DocumentService;
@@ -60,11 +61,22 @@ class ApplicationController extends Controller
             $perPage = min($request->get('per_page', 20), 100); // Max 100 per page
 
             $applications = $this->applicationService->getApplications($filters, $perPage, $request->user());
+            $items = collect($applications->items())->map(function (Application $application) use ($request) {
+                $application->loadMissing([
+                    'status',
+                    'createdBy',
+                    'assignedPoliceOfficer',
+                    'assignedNisOfficer',
+                    'assignedOpcApprover',
+                ]);
+
+                return (new ApplicationResource($application))->resolve($request);
+            })->all();
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'data' => $applications->items(),
+                    'data' => $items,
                 ],
                 'meta' => [
                     'current_page' => $applications->currentPage(),
@@ -174,14 +186,14 @@ class ApplicationController extends Controller
                 'decisions.decisionType',
                 'decisions.decisionValue',
                 'decisions.decidedBy',
-            ])->findOrFail($id);
+            ])->withCount(['documents', 'vettingRecords'])->findOrFail($id);
             if (!$this->applicationService->canAccessApplication($application, $request->user())) {
                 return $this->forbiddenApplicationResponse();
             }
 
             return response()->json([
                 'success' => true,
-                'data' => $application,
+                'data' => (new ApplicationResource($application))->resolve($request),
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
                 ],
@@ -383,10 +395,17 @@ class ApplicationController extends Controller
                 $request->police_officer_id,
                 $request->user()
             );
+            $application->loadMissing([
+                'status',
+                'createdBy',
+                'assignedPoliceOfficer',
+                'assignedNisOfficer',
+                'assignedOpcApprover',
+            ])->loadCount(['documents', 'vettingRecords']);
 
             return response()->json([
                 'success' => true,
-                'data' => $application,
+                'data' => (new ApplicationResource($application))->resolve($request),
                 'message' => 'Application assigned to police officer successfully',
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -441,10 +460,17 @@ class ApplicationController extends Controller
                 $request->nis_officer_id,
                 $request->user()
             );
+            $application->loadMissing([
+                'status',
+                'createdBy',
+                'assignedPoliceOfficer',
+                'assignedNisOfficer',
+                'assignedOpcApprover',
+            ])->loadCount(['documents', 'vettingRecords']);
 
             return response()->json([
                 'success' => true,
-                'data' => $application,
+                'data' => (new ApplicationResource($application))->resolve($request),
                 'message' => 'Application assigned to NIS officer successfully',
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),

@@ -15,6 +15,18 @@ class PushSubscriptionController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        if (!$this->webPushService->supportsSubscriptionStorage()) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'meta' => [
+                    'subscribed' => false,
+                    'supported' => false,
+                    'timestamp' => now()->toIso8601String(),
+                ],
+            ]);
+        }
+
         $subscriptions = $this->webPushService->subscriptionsForUser($request->user());
 
         return response()->json([
@@ -30,6 +42,20 @@ class PushSubscriptionController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        if (!$this->webPushService->supportsSubscriptionStorage()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'UNAVAILABLE',
+                    'message' => 'Push subscription storage is not available in this environment.',
+                ],
+                'meta' => [
+                    'supported' => false,
+                    'timestamp' => now()->toIso8601String(),
+                ],
+            ], 503);
+        }
+
         $validated = $request->validate([
             'endpoint' => ['required', 'url', 'max:2048'],
             'keys.p256dh' => ['required', 'string', 'max:255'],
@@ -58,6 +84,20 @@ class PushSubscriptionController extends Controller
 
     public function destroy(Request $request): JsonResponse
     {
+        if (!$this->webPushService->supportsSubscriptionStorage()) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'deleted' => 0,
+                ],
+                'message' => 'Push subscription removed successfully',
+                'meta' => [
+                    'supported' => false,
+                    'timestamp' => now()->toIso8601String(),
+                ],
+            ]);
+        }
+
         $validated = $request->validate([
             'endpoint' => ['required', 'url', 'max:2048'],
         ]);

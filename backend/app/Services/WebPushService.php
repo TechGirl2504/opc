@@ -5,9 +5,11 @@ namespace App\Services;
 use App\Models\Notification;
 use App\Models\PushSubscription;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class WebPushService
 {
@@ -50,6 +52,10 @@ class WebPushService
 
     public function registerSubscription(User $user, array $payload): PushSubscription
     {
+        if (!$this->supportsSubscriptionStorage()) {
+            throw new \RuntimeException('Push subscription storage is not available.');
+        }
+
         return PushSubscription::updateOrCreate(
             [
                 'endpoint' => $payload['endpoint'],
@@ -68,22 +74,49 @@ class WebPushService
 
     public function removeSubscription(User $user, string $endpoint): int
     {
-        return PushSubscription::where('user_id', $user->id)
-            ->where('endpoint', $endpoint)
-            ->delete();
+        if (!$this->supportsSubscriptionStorage()) {
+            return 0;
+        }
+
+        try {
+            return PushSubscription::where('user_id', $user->id)
+                ->where('endpoint', $endpoint)
+                ->delete();
+        } catch (QueryException $e) {
+            Log::warning('Web push subscription removal skipped', [
+                'user_id' => $user->id,
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+            ]);
+
+            return 0;
+        }
     }
 
     public function subscriptionsForUser(User $user): Collection
     {
-        return PushSubscription::where('user_id', $user->id)
-            ->where('is_active', true)
-            ->orderByDesc('last_seen_at')
-            ->get();
+        if (!$this->supportsSubscriptionStorage()) {
+            return collect();
+        }
+
+        try {
+            return PushSubscription::where('user_id', $user->id)
+                ->where('is_active', true)
+                ->orderByDesc('last_seen_at')
+                ->get();
+        } catch (QueryException $e) {
+            Log::warning('Web push subscription lookup skipped', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return collect();
+        }
     }
 
     public function sendToUser(User $user, ?Notification $notification = null): void
     {
-        if (!$this->isEnabled()) {
+        if (!$this->isEnabled() || !$this->supportsSubscriptionStorage()) {
             return;
         }
 
@@ -160,6 +193,15 @@ class WebPushService
         }
 
         return $audience;
+    }
+
+    public function supportsSubscriptionStorage(): bool
+    {
+        try {
+            return Schema::hasTable('push_subscriptions');
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     private function createVapidJwt(string $audience): ?string
