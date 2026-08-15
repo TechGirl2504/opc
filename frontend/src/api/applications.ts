@@ -6,12 +6,22 @@ export interface Application {
   application_number: string
   full_name: string
   national_id: string
+  date_of_birth?: string | null
+  phone_number?: string | null
   district: string
   traditional_authority: string
   village: string
-  current_name: string
   requested_name: string
-  reason: string
+  name_change_reason_id?: number | null
+  name_change_reason?: {
+    id: number
+    name: string
+    code: string
+    description?: string | null
+    order?: number | null
+    is_active?: boolean
+  } | null
+  reason?: string | null
   status: {
     id: number
     name: string
@@ -55,23 +65,30 @@ export interface ApplicationListParams {
   per_page?: number
   search?: string
   status_id?: number
+  status?: string
   created_by?: number
   assigned_police_officer_id?: number
   assigned_nis_officer_id?: number
   assigned_opc_approver_id?: number
+  vetting_type?: 'police' | 'nis'
+  vetting_state?: 'active' | 'returned'
   date_from?: string
   date_to?: string
+  order_by?: string
+  order_dir?: 'asc' | 'desc'
 }
 
 export interface CreateApplicationRequest {
   full_name: string
   national_id: string
+  date_of_birth?: string
+  phone_number?: string
   district: string
   traditional_authority: string
   village: string
-  current_name: string
   requested_name: string
-  reason: string
+  reason_id?: number | null
+  reason?: string
 }
 
 export interface UpdateApplicationRequest extends Partial<CreateApplicationRequest> {}
@@ -87,6 +104,9 @@ export interface AssignNisRequest {
 export const applicationsApi = {
   list: (params?: ApplicationListParams): Promise<AxiosResponse> =>
     api.get('/applications', { params }),
+
+  getNameChangeReasons: (): Promise<AxiosResponse> =>
+    api.get('/name-change-reasons'),
   
   create: (data: CreateApplicationRequest): Promise<AxiosResponse> =>
     api.post('/applications', data),

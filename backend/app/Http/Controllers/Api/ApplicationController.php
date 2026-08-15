@@ -52,6 +52,9 @@ class ApplicationController extends Controller
                 'created_by' => $request->get('created_by'),
                 'assigned_police_officer_id' => $request->get('assigned_police_officer_id'),
                 'assigned_nis_officer_id' => $request->get('assigned_nis_officer_id'),
+                'assigned_opc_approver_id' => $request->get('assigned_opc_approver_id'),
+                'vetting_type' => $request->get('vetting_type'),
+                'vetting_state' => $request->get('vetting_state'),
                 'date_from' => $request->get('date_from'),
                 'date_to' => $request->get('date_to'),
                 'order_by' => $request->get('order_by', 'created_at'),
@@ -68,6 +71,7 @@ class ApplicationController extends Controller
                     'assignedPoliceOfficer',
                     'assignedNisOfficer',
                     'assignedOpcApprover',
+                    'nameChangeReason',
                 ]);
 
                 return (new ApplicationResource($application))->resolve($request);
@@ -137,7 +141,7 @@ class ApplicationController extends Controller
             }
 
             // Reload application with documents
-            $application->load(['documents.documentType', 'documents.uploadedBy']);
+            $application->load(['documents.documentType', 'documents.uploadedBy', 'nameChangeReason', 'status', 'createdBy']);
 
             return response()->json([
                 'success' => true,
@@ -177,6 +181,7 @@ class ApplicationController extends Controller
                 'assignedPoliceOfficer',
                 'assignedNisOfficer',
                 'assignedOpcApprover',
+                'nameChangeReason',
                 'documents.documentType',
                 'documents.uploadedBy',
                 'vettingRecords.vettingType',

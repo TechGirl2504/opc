@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Application;
 use App\Models\ApplicationStatus;
+use App\Models\NameChangeReason;
 use App\Models\User;
 use App\Models\AuditLog;
 use Illuminate\Support\Facades\DB;
@@ -291,6 +292,7 @@ class ApplicationService
             'assignedPoliceOfficer',
             'assignedNisOfficer',
             'assignedOpcApprover',
+            'nameChangeReason',
             'documents',
             'vettingRecords',
         ]);
@@ -305,15 +307,35 @@ class ApplicationService
             });
         }
 
-        // Search by application number, full name, or national ID
-        if (isset($filters['search']) && $filters['search']) {
-            $search = $filters['search'];
-            $query->where(function($q) use ($search) {
-                $q->where('application_number', 'like', "%{$search}%")
-                  ->orWhere('full_name', 'like', "%{$search}%")
-                  ->orWhere('national_id', 'like', "%{$search}%")
-                  ->orWhere('current_name', 'like', "%{$search}%")
-                  ->orWhere('requested_name', 'like', "%{$search}%");
+        // Search across identity, location, reason, and status fields.
+        if (isset($filters['search']) && trim((string) $filters['search']) !== '') {
+            $terms = preg_split('/\s+/', trim((string) $filters['search'])) ?: [];
+
+            $query->where(function ($outerQuery) use ($terms) {
+                foreach ($terms as $term) {
+                    $outerQuery->where(function ($q) use ($term) {
+                        $like = "%{$term}%";
+
+                        $q->where('application_number', 'like', $like)
+                          ->orWhere('full_name', 'like', $like)
+                          ->orWhere('national_id', 'like', $like)
+                          ->orWhere('date_of_birth', 'like', $like)
+                          ->orWhere('phone_number', 'like', $like)
+                          ->orWhere('district', 'like', $like)
+                          ->orWhere('traditional_authority', 'like', $like)
+                          ->orWhere('village', 'like', $like)
+                          ->orWhere('requested_name', 'like', $like)
+                          ->orWhere('reason', 'like', $like)
+                          ->orWhereHas('nameChangeReason', function ($reasonQuery) use ($like) {
+                              $reasonQuery->where('name', 'like', $like)
+                                  ->orWhere('code', 'like', $like);
+                          })
+                          ->orWhereHas('status', function ($statusQuery) use ($like) {
+                              $statusQuery->where('name', 'like', $like)
+                                  ->orWhere('code', 'like', $like);
+                          });
+                    });
+                }
             });
         }
 
@@ -344,6 +366,23 @@ class ApplicationService
             $query->where('assigned_nis_officer_id', $filters['assigned_nis_officer_id']);
         }
 
+        if (isset($filters['assigned_opc_approver_id']) && $filters['assigned_opc_approver_id']) {
+            $query->where('assigned_opc_approver_id', $filters['assigned_opc_approver_id']);
+        }
+
+        if (!empty($filters['vetting_type']) && !empty($filters['vetting_state'])) {
+            $vettingRelation = $filters['vetting_type'] === 'nis' ? 'nisVetting' : 'policeVetting';
+            $sentBackCondition = function ($q) {
+                $q->where('code', 'sent_back');
+            };
+
+            if ($filters['vetting_state'] === 'returned') {
+                $query->whereHas("{$vettingRelation}.status", $sentBackCondition);
+            } elseif ($filters['vetting_state'] === 'active') {
+                $query->whereDoesntHave("{$vettingRelation}.status", $sentBackCondition);
+            }
+        }
+
         // Date range filters
         if (isset($filters['date_from']) && $filters['date_from']) {
             $query->whereDate('created_at', '>=', $filters['date_from']);
@@ -370,16 +409,19 @@ class ApplicationService
         try {
             // Get pending status
             $pendingStatus = ApplicationStatus::where('code', 'pending')->firstOrFail();
+            $reason = $this->resolveNameChangeReason($data);
 
             $application = Application::create([
                 'full_name' => $data['full_name'],
                 'national_id' => $data['national_id'] ?? null,
+                'date_of_birth' => $data['date_of_birth'] ?? null,
+                'phone_number' => $data['phone_number'] ?? null,
                 'district' => $data['district'],
                 'traditional_authority' => $data['traditional_authority'],
                 'village' => $data['village'],
-                'current_name' => $data['current_name'] ?? null,
                 'requested_name' => $data['requested_name'],
-                'reason' => $data['reason'],
+                'name_change_reason_id' => $reason?->id,
+                'reason' => $reason?->name ?? ($data['reason'] ?? null),
                 'status_id' => $pendingStatus->id,
                 'created_by' => $user->id,
                 'submitted_at' => now(),
@@ -392,7 +434,7 @@ class ApplicationService
             $this->notificationService->notifyApplicationReceivedByAdmins($application, $user);
 
             DB::commit();
-            return $application->load(['status', 'createdBy']);
+            return $application->load(['status', 'createdBy', 'nameChangeReason']);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Failed to create application: ' . $e->getMessage());
@@ -410,16 +452,19 @@ class ApplicationService
             $oldValues = $application->toArray();
             $returnedStatus = ApplicationStatus::where('code', 'returned_to_data_entry')->first();
             $pendingStatus = ApplicationStatus::where('code', 'pending')->first();
+            $reason = $this->resolveNameChangeReason($data);
 
             $application->update([
                 'full_name' => $data['full_name'] ?? $application->full_name,
                 'national_id' => $data['national_id'] ?? $application->national_id,
+                'date_of_birth' => $data['date_of_birth'] ?? $application->date_of_birth,
+                'phone_number' => $data['phone_number'] ?? $application->phone_number,
                 'district' => $data['district'] ?? $application->district,
                 'traditional_authority' => $data['traditional_authority'] ?? $application->traditional_authority,
                 'village' => $data['village'] ?? $application->village,
-                'current_name' => $data['current_name'] ?? $application->current_name,
                 'requested_name' => $data['requested_name'] ?? $application->requested_name,
-                'reason' => $data['reason'] ?? $application->reason,
+                'name_change_reason_id' => $reason?->id ?? $application->name_change_reason_id,
+                'reason' => $reason?->name ?? ($data['reason'] ?? $application->reason),
             ]);
 
             if (
@@ -442,12 +487,29 @@ class ApplicationService
             $this->auditService->logUpdate($user, Application::class, $application->id, $oldValues, $application->toArray());
 
             DB::commit();
-            return $application->fresh(['status', 'createdBy']);
+            return $application->fresh(['status', 'createdBy', 'nameChangeReason']);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Failed to update application: ' . $e->getMessage());
             throw $e;
         }
+    }
+
+    /**
+     * Resolve a submitted reason into a managed name-change reason.
+     */
+    protected function resolveNameChangeReason(array $data): ?NameChangeReason
+    {
+        if (!empty($data['reason_id'])) {
+            return NameChangeReason::find($data['reason_id']);
+        }
+
+        if (!empty($data['reason'])) {
+            return NameChangeReason::where('name', $data['reason'])->first()
+                ?? NameChangeReason::where('code', $data['reason'])->first();
+        }
+
+        return null;
     }
 
     /**

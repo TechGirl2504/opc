@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Application;
+use App\Models\ApplicationStatus;
 use App\Models\VettingRecord;
 use App\Models\AuditLog;
 use App\Services\AuditService;
@@ -40,6 +41,10 @@ class ReportController extends Controller
                 $query->whereDate('created_at', '<=', $dateTo);
             }
 
+            if ($request->filled('assigned_opc_approver_id')) {
+                $query->where('assigned_opc_approver_id', $request->get('assigned_opc_approver_id'));
+            }
+
             // Permission-based scoping:
             // - Users with "view all applications" can see all
             // - Otherwise scope to records they created or are assigned to
@@ -63,6 +68,40 @@ class ReportController extends Controller
                 $q->where('code', 'denied');
             })->count();
 
+            $opcReviewStatus = ApplicationStatus::where('code', 'opc_review')->first();
+            $policeVettingStatus = ApplicationStatus::where('code', 'police_vetting')->first();
+            $nisVettingStatus = ApplicationStatus::where('code', 'nis_vetting')->first();
+
+            $returnedToAdmin = $opcReviewStatus
+                ? (clone $query)->where('status_id', $opcReviewStatus->id)->count()
+                : 0;
+
+            $policeVettingTotal = $policeVettingStatus
+                ? (clone $query)->where('status_id', $policeVettingStatus->id)->count()
+                : 0;
+            $policeVettingReturned = $policeVettingStatus
+                ? (clone $query)
+                    ->where('status_id', $policeVettingStatus->id)
+                    ->whereHas('policeVetting.status', function ($q) {
+                        $q->where('code', 'sent_back');
+                    })
+                    ->count()
+                : 0;
+            $policeVettingActive = max(0, $policeVettingTotal - $policeVettingReturned);
+
+            $nisVettingTotal = $nisVettingStatus
+                ? (clone $query)->where('status_id', $nisVettingStatus->id)->count()
+                : 0;
+            $nisVettingReturned = $nisVettingStatus
+                ? (clone $query)
+                    ->where('status_id', $nisVettingStatus->id)
+                    ->whereHas('nisVetting.status', function ($q) {
+                        $q->where('code', 'sent_back');
+                    })
+                    ->count()
+                : 0;
+            $nisVettingActive = max(0, $nisVettingTotal - $nisVettingReturned);
+
             // Get status breakdown with same role-based filtering
             $statusBreakdownQuery = Application::select('application_statuses.name', 'application_statuses.code', DB::raw('count(*) as count'))
                 ->join('application_statuses', 'applications.status_id', '=', 'application_statuses.id');
@@ -84,6 +123,10 @@ class ReportController extends Controller
             if ($dateTo) {
                 $statusBreakdownQuery->whereDate('applications.created_at', '<=', $dateTo);
             }
+
+            if ($request->filled('assigned_opc_approver_id')) {
+                $statusBreakdownQuery->where('applications.assigned_opc_approver_id', $request->get('assigned_opc_approver_id'));
+            }
             
             $statusBreakdown = $statusBreakdownQuery
                 ->groupBy('application_statuses.id', 'application_statuses.name', 'application_statuses.code')
@@ -97,12 +140,31 @@ class ReportController extends Controller
                         'pending' => $pending,
                         'approved' => $approved,
                         'denied' => $denied,
+                        'returned_to_admin' => $returnedToAdmin,
+                        'returned_to_police' => $policeVettingReturned,
+                        'returned_to_nis' => $nisVettingReturned,
+                        'police_vetting_total' => $policeVettingTotal,
+                        'police_vetting_active' => $policeVettingActive,
+                        'nis_vetting_total' => $nisVettingTotal,
+                        'nis_vetting_active' => $nisVettingActive,
                     ],
                     // Also provide flat structure for frontend compatibility
                     'total_applications' => $total,
                     'pending_applications' => $pending,
                     'approved_applications' => $approved,
                     'denied_applications' => $denied,
+                    'returned_to_admin_applications' => $returnedToAdmin,
+                    'returned_to_police_applications' => $policeVettingReturned,
+                    'returned_to_nis_applications' => $nisVettingReturned,
+                    'police_vetting_active_applications' => $policeVettingActive,
+                    'nis_vetting_active_applications' => $nisVettingActive,
+                    'workflow_counts' => [
+                        'returned_to_admin' => $returnedToAdmin,
+                        'returned_to_police' => $policeVettingReturned,
+                        'returned_to_nis' => $nisVettingReturned,
+                        'police_vetting_active' => $policeVettingActive,
+                        'nis_vetting_active' => $nisVettingActive,
+                    ],
                     'status_breakdown' => $statusBreakdown,
                 ],
                 'meta' => [
@@ -134,6 +196,7 @@ class ReportController extends Controller
                 'status_id' => $request->get('status_id'),
                 'status' => $request->get('status'),
                 'created_by' => $request->get('created_by'),
+                'assigned_opc_approver_id' => $request->get('assigned_opc_approver_id'),
                 'date_from' => $request->get('date_from'),
                 'date_to' => $request->get('date_to'),
                 'institution_id' => $request->get('institution_id'),
@@ -167,6 +230,10 @@ class ReportController extends Controller
 
             if (isset($filters['created_by']) && $filters['created_by']) {
                 $query->where('created_by', $filters['created_by']);
+            }
+
+            if (isset($filters['assigned_opc_approver_id']) && $filters['assigned_opc_approver_id']) {
+                $query->where('assigned_opc_approver_id', $filters['assigned_opc_approver_id']);
             }
 
             if (isset($filters['date_from']) && $filters['date_from']) {
