@@ -58,7 +58,7 @@
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="form.full_name"
-                label="Full Name *"
+                label="Current Full Name *"
                 :rules="fullNameRules"
                 variant="outlined"
                 :disabled="isEditLocked"
@@ -71,13 +71,39 @@
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="form.national_id"
-                label="National ID"
+                label="National ID *"
                 :rules="nationalIdRules"
                 variant="outlined"
                 :disabled="isEditLocked"
-                hint="Optional: 8 characters, uppercase letters and numbers only (e.g., ABC12345)"
+                required
+                hint="8 characters, uppercase letters and numbers only (e.g., ABC12345)"
                 persistent-hint
                 @input="form.national_id = form.national_id.toUpperCase()"
+              />
+            </v-col>
+
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="form.date_of_birth"
+                label="Date of Birth"
+                type="date"
+                :rules="dateOfBirthRules"
+                variant="outlined"
+                :disabled="isEditLocked"
+                hint="Optional: select the applicant's date of birth"
+                persistent-hint
+              />
+            </v-col>
+
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="form.phone_number"
+                label="Phone Number"
+                :rules="phoneNumberRules"
+                variant="outlined"
+                :disabled="isEditLocked"
+                hint="Optional: digits, spaces, plus signs, hyphens, and parentheses only"
+                persistent-hint
               />
             </v-col>
 
@@ -122,42 +148,48 @@
 
             <v-col cols="12" md="6">
               <v-text-field
-                v-model="form.current_name"
-                label="Current Name"
-                :rules="currentNameRules"
-                variant="outlined"
-                :disabled="isEditLocked"
-                hint="Optional: Leave blank if this is first-time registration"
-                persistent-hint
-              />
-            </v-col>
-
-            <v-col cols="12" md="6">
-              <v-text-field
                 v-model="form.requested_name"
-                label="Requested Name *"
+                label="Requested Full Name *"
                 :rules="requestedNameRules"
                 variant="outlined"
                 :disabled="isEditLocked"
                 required
-                hint="Must be different from current name"
+                hint="Must be different from current full name"
                 persistent-hint
               />
             </v-col>
 
             <v-col cols="12">
-              <v-textarea
-                v-model="form.reason"
-                label="Reason for Change *"
-                :rules="reasonRules"
-                variant="outlined"
-                :disabled="isEditLocked"
-                rows="4"
-                required
-                hint="Minimum 10 characters required"
-                persistent-hint
-                counter="5000"
-              />
+              <v-card variant="outlined" class="pa-4">
+                <div class="text-subtitle-1 mb-4">Reason for Change *</div>
+                <v-radio-group
+                  v-model="form.reason_id"
+                  :rules="reasonRules"
+                  :disabled="isEditLocked"
+                >
+                  <div v-if="reasonOptions.length" class="reason-list">
+                    <label
+                      v-for="reason in reasonOptions"
+                      :key="reason.id"
+                      class="reason-choice"
+                    >
+                      <v-radio
+                        :value="reason.id"
+                        class="reason-choice__radio"
+                      />
+                      <span class="reason-choice__label">{{ reason.name }}</span>
+                    </label>
+                  </div>
+                  <v-alert
+                    v-else
+                    type="info"
+                    variant="tonal"
+                    density="compact"
+                  >
+                    No active name change reasons are available. Ask an administrator to configure them first.
+                  </v-alert>
+                </v-radio-group>
+              </v-card>
             </v-col>
           </v-row>
 
@@ -314,7 +346,7 @@
               type="submit"
               color="primary"
               :loading="loading"
-              :disabled="!valid || loading || isEditLocked"
+              :disabled="loading || isEditLocked"
             >
               {{ isEditMode ? 'Update Application' : 'Create Application' }}
             </v-btn>
@@ -330,7 +362,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { applicationsApi, type Application } from '@/api/applications'
 import { documentsApi, type Document } from '@/api/documents'
-import { adminApi } from '@/api/admin'
+import { adminApi, type NameChangeReason } from '@/api/admin'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 
@@ -354,6 +386,8 @@ const deletingDocumentId = ref<number | null>(null)
 const documentTypes = ref<Array<{ id: number; name: string }>>([])
 const selectedDocumentType = ref<number | null>(null)
 
+const reasonOptions = ref<NameChangeReason[]>([])
+
 // Preview dialog state (used by previewDocument/closePreview)
 const showPreviewDialog = ref(false)
 const previewLoading = ref(false)
@@ -375,14 +409,73 @@ const isEditLocked = computed(() => {
   return !canEditLoadedApplication.value
 })
 
+function getDashboardRedirectView(statusCode?: string | null): string {
+  const normalizedStatus = statusCode?.toLowerCase() ?? ''
+
+  if (authStore.isAdmin) {
+    if (normalizedStatus === 'returned_to_admin' || normalizedStatus === 'opc_review') return 'returned_to_admin'
+    if (normalizedStatus === 'returned_to_police') return 'returned_to_police'
+    if (normalizedStatus === 'returned_to_nis') return 'returned_to_nis'
+    if (normalizedStatus === 'pending_approval') return 'pending_approval'
+    if (normalizedStatus === 'approved') return 'approved'
+    if (normalizedStatus === 'denied') return 'denied'
+    return 'all'
+  }
+
+  if (authStore.hasAnyRole(['opc_approver'])) {
+    if (normalizedStatus === 'approved') return 'approved'
+    if (normalizedStatus === 'denied') return 'denied_by_me'
+    if (normalizedStatus === 'returned_to_admin' || normalizedStatus === 'opc_review') return 'returned_to_admin'
+    if (normalizedStatus === 'returned_to_police') return 'returned_to_police'
+    if (normalizedStatus === 'returned_to_nis') return 'returned_to_nis'
+    return 'pending_approval'
+  }
+
+  if (authStore.hasAnyRole(['police_officer'])) {
+    if (normalizedStatus === 'police_completed') return 'completed'
+    if (normalizedStatus === 'returned_to_police') return 'returned'
+    if (normalizedStatus === 'police_vetting') return 'queue'
+    return 'assigned'
+  }
+
+  if (authStore.hasAnyRole(['nis_officer'])) {
+    if (normalizedStatus === 'nis_completed') return 'completed'
+    if (normalizedStatus === 'returned_to_nis') return 'returned'
+    if (normalizedStatus === 'nis_vetting') return 'queue'
+    return 'assigned'
+  }
+
+  if (authStore.hasAnyRole(['opc_data_entry'])) {
+    if (normalizedStatus === 'returned_to_data_entry') return 'returned'
+    if (normalizedStatus === 'police_vetting') return 'police_vetting'
+    if (normalizedStatus === 'nis_vetting') return 'nis_vetting'
+    if (normalizedStatus === 'pending_approval' || normalizedStatus === 'pending') return 'pending'
+    return 'all'
+  }
+
+  if (normalizedStatus === 'returned_to_data_entry') return 'returned'
+  if (normalizedStatus === 'approved') return 'approved'
+  if (normalizedStatus === 'denied') return 'denied'
+  return 'all'
+}
+
+function redirectToDashboard(statusCode?: string | null) {
+  router.push({
+    name: 'Dashboard',
+    query: { view: getDashboardRedirectView(statusCode) }
+  })
+}
+
 const form = reactive({
   full_name: '',
   national_id: '',
+  date_of_birth: '',
+  phone_number: '',
   district: '',
   traditional_authority: '',
   village: '',
-  current_name: '',
   requested_name: '',
+  reason_id: null as number | null,
   reason: ''
 })
 
@@ -396,17 +489,32 @@ const fullNameRules = [
 
 const nationalIdRules = [
   (v: string) => {
-    if (!v) return true // Optional field
+    if (!v) return 'National ID is required'
     if (v.length !== 8) return 'National ID must be exactly 8 characters'
     if (!/^[A-Z0-9]+$/.test(v)) return 'National ID must contain only uppercase letters and numbers'
     return true
   }
 ]
 
-const currentNameRules = [
+const dateOfBirthRules = [
   (v: string) => {
-    if (!v) return true // Optional field
-    if (v.length > 255) return 'Current name must not exceed 255 characters'
+    if (!v) return true
+    if (new Date(v) >= new Date(new Date().toDateString())) {
+      return 'Date of birth must be a past date'
+    }
+    return true
+  }
+]
+
+const phoneNumberRules = [
+  (v: string) => {
+    if (!v) return true
+    if (!/^[0-9+\-\s()]+$/.test(v)) {
+      return 'Phone number may contain only digits, spaces, plus signs, hyphens, and parentheses'
+    }
+    if (v.length > 25) {
+      return 'Phone number must not exceed 25 characters'
+    }
     return true
   }
 ]
@@ -425,17 +533,19 @@ const requestedNameRules = [
   (v: string) => (v && v.length >= 2) || 'Requested name must be at least 2 characters',
   (v: string) => (v && v.length <= 255) || 'Requested name must not exceed 255 characters',
   (v: string) => {
-    if (form.current_name && v === form.current_name) {
-      return 'Requested name must be different from current name'
+    if (form.full_name && v === form.full_name) {
+      return 'Requested name must be different from current full name'
     }
     return true
   }
 ]
 
 const reasonRules = [
-  (v: string) => !!v || 'Reason is required',
-  (v: string) => (v && v.length >= 10) || 'Reason must be at least 10 characters',
-  (v: string) => (v && v.length <= 5000) || 'Reason must not exceed 5000 characters'
+  (v: number | null) => !!v || !!form.reason || 'Reason for change is required',
+  (v: number | null) => {
+    if (!v) return !!form.reason || 'Reason for change is required'
+    return reasonOptions.value.some(option => option.id === Number(v)) || 'Select a valid reason for change'
+  }
 ]
 
 const fileRules = [
@@ -548,29 +658,32 @@ async function loadApplication() {
 
       if (!app.allowed_actions?.includes('edit_application')) {
         toast.error('Cannot edit application that has been assigned to an officer')
-        router.push({ name: 'ApplicationDetail', params: { id: applicationId.value } })
+        redirectToDashboard(app.status?.code)
         return
       }
 
       form.full_name = app.full_name
       form.national_id = app.national_id || ''
+      form.date_of_birth = app.date_of_birth || ''
+      form.phone_number = app.phone_number || ''
       form.district = app.district || ''
       form.traditional_authority = app.traditional_authority || ''
       form.village = app.village || ''
-      form.current_name = app.current_name || ''
       form.requested_name = app.requested_name
-      form.reason = app.reason
+      form.reason_id = app.name_change_reason_id
+        || app.name_change_reason?.id
+        || reasonOptions.value.find(option => option.name === app.reason)?.id
+        || null
+      form.reason = app.name_change_reason?.name || app.reason || ''
     }
 
     // Fetch existing documents
     await fetchDocuments()
 
-    // Fetch document types for upload
-    await fetchDocumentTypes()
   } catch (error: any) {
     toast.error('Failed to load application')
     console.error('Error loading application:', error)
-    router.push({ name: 'Applications' })
+    redirectToDashboard(applicationData.value?.status?.code)
   } finally {
     loadingApplication.value = false
   }
@@ -610,6 +723,24 @@ async function fetchDocumentTypes() {
     }
   } catch (error) {
     console.error('Error fetching document types:', error)
+  }
+}
+
+async function fetchNameChangeReasons() {
+  try {
+    const response = await applicationsApi.getNameChangeReasons()
+    if (response.data.success) {
+      reasonOptions.value = (response.data.data || [])
+        .filter((reason: NameChangeReason) => reason.is_active !== false)
+        .sort((a: NameChangeReason, b: NameChangeReason) => {
+          if ((a.order ?? 0) !== (b.order ?? 0)) {
+            return (a.order ?? 0) - (b.order ?? 0)
+          }
+          return a.name.localeCompare(b.name)
+        })
+    }
+  } catch (error) {
+    console.error('Error fetching name change reasons:', error)
   }
 }
 
@@ -786,10 +917,11 @@ async function uploadDocuments() {
 
 function handleCancel() {
   if (isEditMode.value) {
-    router.push({ name: 'ApplicationDetail', params: { id: applicationId.value } })
-  } else {
-    router.push({ name: 'Applications' })
+    redirectToDashboard(applicationData.value?.status?.code)
+    return
   }
+
+  redirectToDashboard()
 }
 
 async function handleSubmit() {
@@ -810,13 +942,14 @@ async function handleSubmit() {
       // Check if application is assigned - cannot edit if assigned, unless this is the admin approver-return review flow.
       if (isEditLocked.value) {
         toast.error('Cannot edit application that has been assigned to an officer')
-        router.push({ name: 'ApplicationDetail', params: { id: applicationId.value } })
+        redirectToDashboard(applicationData.value?.status?.code)
         return
       }
 
       // Check if user can edit this application
       if (!canEditLoadedApplication.value) {
         toast.error('You do not have permission to edit applications')
+        redirectToDashboard(applicationData.value?.status?.code)
         return
       }
 
@@ -825,22 +958,24 @@ async function handleSubmit() {
         toast.success('Application updated successfully!')
         // Refresh documents before navigating
         await fetchDocuments()
-        router.push({
-          name: 'ApplicationDetail',
-          params: { id: applicationId.value }
-        })
+        redirectToDashboard(response.data.data?.status?.code || applicationData.value?.status?.code)
       }
     } else {
       // Create FormData for file upload
       const formData = new FormData()
       formData.append('full_name', form.full_name)
       if (form.national_id) formData.append('national_id', form.national_id)
+      if (form.date_of_birth) formData.append('date_of_birth', form.date_of_birth)
+      if (form.phone_number) formData.append('phone_number', form.phone_number)
       formData.append('district', form.district)
       formData.append('traditional_authority', form.traditional_authority)
       formData.append('village', form.village)
-      if (form.current_name) formData.append('current_name', form.current_name)
       formData.append('requested_name', form.requested_name)
-      formData.append('reason', form.reason)
+      if (form.reason_id) {
+        formData.append('reason_id', String(form.reason_id))
+      } else if (form.reason) {
+        formData.append('reason', form.reason)
+      }
 
       // Append files (Laravel expects 'documents[]' for array)
       validFiles.value.forEach((file) => {
@@ -854,10 +989,7 @@ async function handleSubmit() {
         selectedFiles.value = []
         validFiles.value = []
         fileErrors.value = []
-        router.push({
-          name: 'ApplicationDetail',
-          params: { id: response.data.data.id }
-        })
+        redirectToDashboard(response.data.data?.status?.code)
       }
     }
   } catch (error: any) {
@@ -888,9 +1020,12 @@ async function handleSubmit() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await fetchNameChangeReasons()
+  await fetchDocumentTypes()
+
   if (isEditMode.value) {
-    loadApplication()
+    await loadApplication()
   }
 })
 </script>
@@ -920,6 +1055,39 @@ onMounted(() => {
 
 .gov-card :deep(.v-card) {
   border-radius: 16px;
+}
+
+.reason-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px 20px;
+}
+
+.reason-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  cursor: pointer;
+}
+
+.reason-choice__radio {
+  flex-shrink: 0;
+}
+
+.reason-choice__label {
+  line-height: 1.5;
+  padding-top: 0;
+}
+
+.reason-choice :deep(.v-selection-control) {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.reason-choice :deep(.v-selection-control__input) {
+  margin-inline-end: 8px;
 }
 
 @media (max-width: 600px) {

@@ -132,7 +132,7 @@
                     icon="mdi-eye"
                     size="small"
                     variant="text"
-                    @click="router.push({ name: 'ApplicationDetail', params: { id: item.id } })"
+                    @click="openApplicationDetails(item.id)"
                   />
                 </template>
               </v-data-table-server>
@@ -213,7 +213,7 @@
                     icon="mdi-eye"
                     size="small"
                     variant="text"
-                    @click="router.push({ name: 'ApplicationDetail', params: { id: item.id } })"
+                    @click="openApplicationDetails(item.id)"
                   />
                 </template>
               </v-data-table-server>
@@ -264,7 +264,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { format } from 'date-fns'
 import { useAuthStore } from '@/stores/auth'
 import { applicationsApi, type Application, type ApplicationListParams } from '@/api/applications'
@@ -333,6 +333,7 @@ type DashboardProfile = {
 }
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const loading = ref(false)
 const dashboardData = ref<any>(null)
@@ -497,6 +498,31 @@ function getCurrentApproverListSubtitle(): string {
 
 function setApproverView(view: ApproverView) {
   activeApproverView.value = view
+}
+
+function getRouteViewQuery(): string | null {
+  return typeof route.query.view === 'string' && route.query.view ? route.query.view : null
+}
+
+function applyInitialDashboardView() {
+  const requestedView = getRouteViewQuery()
+
+  if (dashboardRole.value === 'approver') {
+    const view = approverTabs.some(tab => tab.key === requestedView)
+      ? (requestedView as ApproverView)
+      : 'pending_approval'
+
+    activeApproverView.value = view
+    return
+  }
+
+  const fallbackView = dashboardProfile.value.defaultWorkspaceView
+  const view = requestedView && dashboardProfile.value.workspaceTabs.some(tab => tab.key === requestedView)
+    ? requestedView
+    : fallbackView
+
+  activeWorkspaceView.value = view
+  workspaceInitialized.value = true
 }
 
 function getWorkspaceViewLabel(view: WorkspaceView): string {
@@ -1004,6 +1030,14 @@ function handleAction(action: DashboardAction) {
   }
 }
 
+function openApplicationDetails(id: number) {
+  router.push({
+    name: 'ApplicationDetail',
+    params: { id },
+    query: { returnTo: route.fullPath }
+  })
+}
+
 async function fetchDashboardData() {
   loading.value = true
   try {
@@ -1057,15 +1091,25 @@ async function fetchApproverApplications(sortBy: Array<{ key: string; order?: 'a
 }
 
 onMounted(async () => {
+  applyInitialDashboardView()
   await fetchDashboardData()
   if (dashboardRole.value === 'approver') {
     await fetchApproverApplications()
   } else {
-    activeWorkspaceView.value = dashboardProfile.value.defaultWorkspaceView
-    workspaceInitialized.value = true
+    if (!workspaceInitialized.value) {
+      activeWorkspaceView.value = dashboardProfile.value.defaultWorkspaceView
+      workspaceInitialized.value = true
+    }
     await fetchWorkspaceApplications()
   }
 })
+
+watch(
+  () => route.query.view,
+  () => {
+    applyInitialDashboardView()
+  }
+)
 
 watch(activeApproverView, () => {
   if (dashboardRole.value !== 'approver') {

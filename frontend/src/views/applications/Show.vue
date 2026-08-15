@@ -34,7 +34,7 @@
             class="detail-hero__button"
             variant="tonal"
             prepend-icon="mdi-arrow-left"
-            @click="$router.push({ name: 'Applications' })"
+            @click="goBack"
           >
             Back to List
           </v-btn>
@@ -55,12 +55,20 @@
           <v-card-text>
             <div class="info-grid">
               <div class="info-item">
-                <div class="info-label">Full Name</div>
+                <div class="info-label">Current Full Name</div>
                 <div class="info-value">{{ application.full_name }}</div>
               </div>
               <div class="info-item">
                 <div class="info-label">National ID</div>
                 <div class="info-value">{{ application.national_id }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Date of Birth</div>
+                <div class="info-value">{{ formatDateOnly(application.date_of_birth) }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Phone Number</div>
+                <div class="info-value">{{ application.phone_number || 'Not provided' }}</div>
               </div>
               <div class="info-item">
                 <div class="info-label">District</div>
@@ -74,17 +82,15 @@
                 <div class="info-label">Village</div>
                 <div class="info-value">{{ application.village }}</div>
               </div>
-              <div class="info-item">
-                <div class="info-label">Current Name</div>
-                <div class="info-value">{{ application.current_name }}</div>
-              </div>
               <div class="info-item info-item--highlight">
-                <div class="info-label">Requested Name</div>
+                <div class="info-label">Requested Full Name</div>
                 <div class="info-value">{{ application.requested_name }}</div>
               </div>
               <div class="info-item info-item--wide">
-                <div class="info-label">Reason</div>
-                <div class="info-value info-value--rich">{{ application.reason }}</div>
+                <div class="info-label">Reason for Change</div>
+                <div class="info-value info-value--rich">
+                  {{ application.name_change_reason?.name || application.reason || 'Not provided' }}
+                </div>
               </div>
             </div>
           </v-card-text>
@@ -794,12 +800,9 @@
       <v-card>
         <v-card-title>Approve Application</v-card-title>
         <v-card-text>
-          <v-textarea
-            v-model="approveNotes"
-            label="Notes (optional)"
-            variant="outlined"
-            rows="3"
-          />
+          <v-alert color="success" variant="tonal">
+            Confirming this will approve the application.
+          </v-alert>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -1036,7 +1039,7 @@ import { adminApi } from '@/api/admin'
 import { decisionsApi } from '@/api/decisions'
 import { usersApi } from '@/api/users'
 import { useToast } from 'vue-toastification'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import PoliceVettingCard from '@/components/PoliceVettingCard.vue'
 import NisVettingCard from '@/components/NisVettingCard.vue'
 import { vettingApi, type VettingRecord } from '@/api/vetting'
@@ -1064,7 +1067,6 @@ const showPreviewDialog = ref(false)
 const previewDocumentData = ref<any>(null)
 const previewUrl = ref<string | null>(null)
 const previewLoading = ref(false)
-const approveNotes = ref('')
 const denyReason = ref('')
 const vettingTab = ref('police')
 
@@ -1135,7 +1137,9 @@ const canSendBackToAdmin = computed(() => hasAllowedAction('send_back_to_admin')
 const canHandleApproverSendBack = computed(() => hasAllowedAction('handle_approver_send_back'))
 const canAssignPolice = computed(() => hasAllowedAction('assign_police_officer'))
 const canAssignNis = computed(() => hasAllowedAction('assign_nis_officer'))
-const canUploadDocuments = computed(() => hasAllowedAction('upload_documents'))
+const canUploadDocuments = computed(() =>
+  hasAllowedAction('upload_documents') && authStore.hasAnyRole(['admin', 'opc_data_entry'])
+)
 const canDownloadDocuments = computed(() => hasAllowedAction('download_documents'))
 const canDeleteDocuments = computed(() => hasAllowedAction('delete_documents'))
 const currentApplicationId = computed(() => Number(route.params.id))
@@ -1184,6 +1188,11 @@ function getStatusColor(statusCode: string) {
 function formatDate(date: string) {
   if (!date) return ''
   return format(new Date(date), 'MMM dd, yyyy HH:mm')
+}
+
+function formatDateOnly(date?: string | null) {
+  if (!date) return 'Not provided'
+  return format(parseISO(date), 'MMM dd, yyyy')
 }
 
 function formatFileSize(bytes: number) {
@@ -1343,7 +1352,7 @@ async function fetchApplication() {
     }
   } catch (error) {
     toast.error('Failed to fetch application')
-    router.push({ name: 'Applications' })
+    router.push({ name: 'Dashboard' })
   } finally {
     loading.value = false
   }
@@ -1581,10 +1590,9 @@ async function deleteDocument(id: number) {
 
 async function approveApplication() {
   try {
-    await decisionsApi.approve(Number(route.params.id), { notes: approveNotes.value })
+    await decisionsApi.approve(Number(route.params.id), {})
     toast.success('Application approved successfully')
     showApproveDialog.value = false
-    approveNotes.value = ''
     fetchApplication()
     fetchDecisions()
   } catch (error: any) {
@@ -1616,7 +1624,11 @@ function editApplication() {
     return
   }
 
-  router.push({ name: 'EditApplication', params: { id: currentApplicationId.value } })
+  router.push({
+    name: 'EditApplication',
+    params: { id: currentApplicationId.value },
+    query: { returnTo: route.fullPath }
+  })
 }
 
 async function fetchOfficers() {
@@ -1933,6 +1945,21 @@ function openHandleSendBackDialog(action: 'send_to_police' | 'send_to_nis') {
   handleSendBackAction.value = action
   handleSendBackReason.value = ''
   showHandleSendBackDialog.value = true
+}
+
+function goBack() {
+  const returnTo = route.query.returnTo
+  if (typeof returnTo === 'string' && returnTo) {
+    router.push(returnTo)
+    return
+  }
+
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+
+  router.push({ name: 'Dashboard' })
 }
 
 onMounted(() => {
