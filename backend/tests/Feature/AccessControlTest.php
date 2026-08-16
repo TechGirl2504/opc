@@ -22,6 +22,7 @@ class AccessControlTest extends TestCase
         $this->seed([
             \Database\Seeders\InstitutionSeeder::class,
             \Database\Seeders\ApplicationStatusSeeder::class,
+            \Database\Seeders\NameChangeReasonSeeder::class,
             \Database\Seeders\DocumentTypeSeeder::class,
             \Database\Seeders\VettingTypeSeeder::class,
             \Database\Seeders\RolePermissionSeeder::class,
@@ -103,16 +104,16 @@ class AccessControlTest extends TestCase
             ->assertJson(['success' => false]);
     }
 
-    public function test_creator_and_admin_can_edit_pending_application(): void
+    public function test_creator_and_admin_can_edit_handoff_application(): void
     {
-        $pendingStatus = ApplicationStatus::where('code', 'pending')->firstOrFail();
+        $handoffStatus = ApplicationStatus::where('code', 'handoff_to_admin')->firstOrFail();
 
         $creator = User::factory()->create();
         $creator->assignRole('opc_data_entry');
 
         $application = Application::factory()->create([
             'created_by' => $creator->id,
-            'status_id' => $pendingStatus->id,
+            'status_id' => $handoffStatus->id,
         ]);
 
         $creatorResponse = $this->actingAs($creator, 'sanctum')
@@ -189,9 +190,9 @@ class AccessControlTest extends TestCase
             ->assertJsonFragment(['send_back_to_admin']);
     }
 
-    public function test_admin_can_send_pending_application_back_to_data_entry(): void
+    public function test_admin_can_send_handoff_application_back_to_data_entry(): void
     {
-        $pendingStatus = ApplicationStatus::where('code', 'pending')->firstOrFail();
+        $handoffStatus = ApplicationStatus::where('code', 'handoff_to_admin')->firstOrFail();
         $returnedStatus = ApplicationStatus::where('code', 'returned_to_data_entry')->firstOrFail();
 
         $admin = User::factory()->create();
@@ -200,12 +201,12 @@ class AccessControlTest extends TestCase
         $creator = User::factory()->create();
         $application = Application::factory()->create([
             'created_by' => $creator->id,
-            'status_id' => $pendingStatus->id,
+            'status_id' => $handoffStatus->id,
         ]);
 
         $response = $this->actingAs($admin, 'sanctum')
             ->postJson("/api/v1/applications/{$application->id}/send-back-to-data-entry", [
-                'reason' => 'Please correct the district spelling.',
+                'reason' => 'To match with academic certificates',
             ]);
 
         $response->assertStatus(200)
@@ -213,9 +214,9 @@ class AccessControlTest extends TestCase
             ->assertJsonFragment(['code' => $returnedStatus->code]);
     }
 
-    public function test_admin_can_edit_pending_application_directly(): void
+    public function test_admin_can_edit_handoff_application_directly(): void
     {
-        $pendingStatus = ApplicationStatus::where('code', 'pending')->firstOrFail();
+        $handoffStatus = ApplicationStatus::where('code', 'handoff_to_admin')->firstOrFail();
 
         $admin = User::factory()->create();
         $admin->assignRole('admin');
@@ -223,7 +224,7 @@ class AccessControlTest extends TestCase
         $creator = User::factory()->create();
         $application = Application::factory()->create([
             'created_by' => $creator->id,
-            'status_id' => $pendingStatus->id,
+            'status_id' => $handoffStatus->id,
         ]);
 
         $response = $this->actingAs($admin, 'sanctum')
@@ -232,8 +233,8 @@ class AccessControlTest extends TestCase
                 'district' => 'Lilongwe',
                 'traditional_authority' => 'T/A Sample',
                 'village' => 'Sample Village',
-                'requested_name' => 'John Updated',
-                'reason' => 'Minor correction to spelling and location details.',
+                'requested_name' => 'John Revised',
+                'reason' => 'To match with bank details',
             ]);
 
         $response->assertStatus(200)
@@ -241,9 +242,9 @@ class AccessControlTest extends TestCase
             ->assertJsonFragment(['full_name' => 'John Updated']);
     }
 
-    public function test_admin_can_edit_pending_application_even_without_explicit_permission_sync(): void
+    public function test_admin_can_edit_handoff_application_even_without_explicit_permission_sync(): void
     {
-        $pendingStatus = ApplicationStatus::where('code', 'pending')->firstOrFail();
+        $handoffStatus = ApplicationStatus::where('code', 'handoff_to_admin')->firstOrFail();
 
         $adminRole = Role::where('name', 'admin')->firstOrFail();
         $adminRole->revokePermissionTo('edit applications');
@@ -254,7 +255,7 @@ class AccessControlTest extends TestCase
         $creator = User::factory()->create();
         $application = Application::factory()->create([
             'created_by' => $creator->id,
-            'status_id' => $pendingStatus->id,
+            'status_id' => $handoffStatus->id,
         ]);
 
         $response = $this->actingAs($admin, 'sanctum')
@@ -263,8 +264,8 @@ class AccessControlTest extends TestCase
                 'district' => 'Lilongwe',
                 'traditional_authority' => 'T/A Sample',
                 'village' => 'Sample Village',
-                'requested_name' => 'Admin Updated Again',
-                'reason' => 'Minor correction to spelling and location details.',
+                'requested_name' => 'Admin Revised Again',
+                'reason' => 'To match with clan name',
             ]);
 
         $response->assertStatus(200)
@@ -306,7 +307,7 @@ class AccessControlTest extends TestCase
                 'district' => 'Lilongwe',
                 'traditional_authority' => 'T/A Sample',
                 'village' => 'Sample Village',
-                'reason' => 'Minor correction after approver review.',
+                'reason' => 'To match with religious beliefs',
             ]);
 
         $response->assertStatus(200)
@@ -336,7 +337,7 @@ class AccessControlTest extends TestCase
         $response = $this->actingAs($admin, 'sanctum')
             ->postJson("/api/v1/applications/{$application->id}/handle-approver-send-back", [
                 'action' => 'send_to_police',
-                'reason' => 'Re-check the district and residence details.',
+                'reason' => 'To match with academic certificates',
             ]);
 
         $response->assertStatus(200)
@@ -366,7 +367,7 @@ class AccessControlTest extends TestCase
         $response = $this->actingAs($admin, 'sanctum')
             ->postJson("/api/v1/applications/{$application->id}/handle-approver-send-back", [
                 'action' => 'send_to_nis',
-                'reason' => 'Re-check the supporting documents.',
+                'reason' => 'To match with clan name',
             ]);
 
         $response->assertStatus(200)
@@ -376,7 +377,7 @@ class AccessControlTest extends TestCase
 
     public function test_creator_can_resubmit_returned_application(): void
     {
-        $pendingStatus = ApplicationStatus::where('code', 'pending')->firstOrFail();
+        $handoffStatus = ApplicationStatus::where('code', 'handoff_to_admin')->firstOrFail();
         $returnedStatus = ApplicationStatus::where('code', 'returned_to_data_entry')->firstOrFail();
 
         $creator = User::factory()->create();
@@ -394,12 +395,12 @@ class AccessControlTest extends TestCase
                 'district' => 'Rumphi',
                 'traditional_authority' => 'Mwamulowe',
                 'village' => 'Luwuchi',
-                'requested_name' => 'John Doe',
-                'reason' => 'Name change due to marriage.',
+                'requested_name' => 'John Doe Updated',
+                'reason' => 'To match with bank details',
             ]);
 
         $response->assertStatus(200)
             ->assertJson(['success' => true])
-            ->assertJsonFragment(['code' => $pendingStatus->code]);
+            ->assertJsonFragment(['code' => $handoffStatus->code]);
     }
 }

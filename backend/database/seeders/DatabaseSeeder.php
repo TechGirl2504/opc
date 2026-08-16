@@ -19,6 +19,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             InstitutionSeeder::class,
             ApplicationStatusSeeder::class,
+            NameChangeReasonSeeder::class,
+            RejectReasonSeeder::class,
             VettingTypeSeeder::class,
             VettingStatusSeeder::class,
             DecisionValueSeeder::class,

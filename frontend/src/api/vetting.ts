@@ -39,6 +39,7 @@ export interface SubmitVettingRequest {
   remarks?: string
   findings?: string
   recommendation_id?: number
+  return_reason?: string
   vetting_date?: string
   document?: File
 }
@@ -52,6 +53,7 @@ export const vettingApi = {
     if (data.remarks) formData.append('remarks', data.remarks)
     if (data.findings) formData.append('findings', data.findings)
     if (data.recommendation_id) formData.append('recommendation_id', String(data.recommendation_id))
+    if (data.return_reason) formData.append('return_reason', data.return_reason)
     if (data.vetting_date) formData.append('vetting_date', data.vetting_date)
     if (data.document) formData.append('document', data.document)
     return api.post(`/applications/${applicationId}/vetting/police`, formData, {
@@ -64,6 +66,7 @@ export const vettingApi = {
     if (data.remarks) formData.append('remarks', data.remarks)
     if (data.findings) formData.append('findings', data.findings)
     if (data.recommendation_id) formData.append('recommendation_id', String(data.recommendation_id))
+    if (data.return_reason) formData.append('return_reason', data.return_reason)
     if (data.vetting_date) formData.append('vetting_date', data.vetting_date)
     if (data.document) formData.append('document', data.document)
     return api.put(`/applications/${applicationId}/vetting/police`, formData, {
@@ -79,6 +82,7 @@ export const vettingApi = {
     if (data.remarks) formData.append('remarks', data.remarks)
     if (data.findings) formData.append('findings', data.findings)
     if (data.recommendation_id) formData.append('recommendation_id', String(data.recommendation_id))
+    if (data.return_reason) formData.append('return_reason', data.return_reason)
     if (data.vetting_date) formData.append('vetting_date', data.vetting_date)
     if (data.document) formData.append('document', data.document)
     return api.post(`/applications/${applicationId}/vetting/nis`, formData, {
@@ -91,6 +95,7 @@ export const vettingApi = {
     if (data.remarks) formData.append('remarks', data.remarks)
     if (data.findings) formData.append('findings', data.findings)
     if (data.recommendation_id) formData.append('recommendation_id', String(data.recommendation_id))
+    if (data.return_reason) formData.append('return_reason', data.return_reason)
     if (data.vetting_date) formData.append('vetting_date', data.vetting_date)
     if (data.document) formData.append('document', data.document)
     return api.put(`/applications/${applicationId}/vetting/nis`, formData, {
@@ -107,6 +112,7 @@ export const vettingApi = {
     if (data.remarks) formData.append('remarks', data.remarks)
     if (data.findings) formData.append('findings', data.findings)
     if (data.recommendation_id) formData.append('recommendation_id', String(data.recommendation_id))
+    if (data.return_reason) formData.append('return_reason', data.return_reason)
     if (data.vetting_date) formData.append('vetting_date', data.vetting_date)
     if (data.document) formData.append('document', data.document)
     return api.post(`/applications/${applicationId}/vetting/police/draft`, formData, {
@@ -119,6 +125,7 @@ export const vettingApi = {
     if (data.remarks) formData.append('remarks', data.remarks)
     if (data.findings) formData.append('findings', data.findings)
     if (data.recommendation_id) formData.append('recommendation_id', String(data.recommendation_id))
+    if (data.return_reason) formData.append('return_reason', data.return_reason)
     if (data.vetting_date) formData.append('vetting_date', data.vetting_date)
     if (data.document) formData.append('document', data.document)
     return api.post(`/applications/${applicationId}/vetting/police/complete`, formData, {
@@ -131,6 +138,7 @@ export const vettingApi = {
     if (data.remarks) formData.append('remarks', data.remarks)
     if (data.findings) formData.append('findings', data.findings)
     if (data.recommendation_id) formData.append('recommendation_id', String(data.recommendation_id))
+    if (data.return_reason) formData.append('return_reason', data.return_reason)
     if (data.vetting_date) formData.append('vetting_date', data.vetting_date)
     if (data.document) formData.append('document', data.document)
     return api.post(`/applications/${applicationId}/vetting/nis/draft`, formData, {
@@ -150,4 +158,3 @@ export const vettingApi = {
     })
   }
 }
-

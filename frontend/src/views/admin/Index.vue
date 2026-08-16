@@ -19,6 +19,8 @@
           <v-tab value="users">Users</v-tab>
           <v-tab value="institutions">Institutions</v-tab>
           <v-tab value="statuses">Application Statuses</v-tab>
+          <v-tab value="name-change-reasons">Name Change Reasons</v-tab>
+          <v-tab value="reject-reasons">Reject Reasons</v-tab>
           <v-tab value="vetting-types">Vetting Types</v-tab>
           <v-tab value="document-types">Document Types</v-tab>
           <v-tab value="roles">Roles & Permissions</v-tab>
@@ -55,6 +57,36 @@
               @update="handleUpdateStatus"
               @delete="handleDeleteStatus"
               @refresh="loadApplicationStatuses"
+            />
+          </v-window-item>
+
+          <!-- Name Change Reasons Tab -->
+          <v-window-item value="name-change-reasons">
+            <ConfigManagement
+              title="Name Change Reasons"
+              :items="nameChangeReasons"
+              :loading="loading"
+              :headers="nameChangeReasonHeaders"
+              :show-order="true"
+              @create="handleCreateNameChangeReason"
+              @update="handleUpdateNameChangeReason"
+              @delete="handleDeleteNameChangeReason"
+              @refresh="loadNameChangeReasons"
+            />
+          </v-window-item>
+
+          <!-- Reject Reasons Tab -->
+          <v-window-item value="reject-reasons">
+            <ConfigManagement
+              title="Reject Reasons"
+              :items="rejectReasons"
+              :loading="loading"
+              :headers="rejectReasonHeaders"
+              :show-order="true"
+              @create="handleCreateRejectReason"
+              @update="handleUpdateRejectReason"
+              @delete="handleDeleteRejectReason"
+              @refresh="loadRejectReasons"
             />
           </v-window-item>
 
@@ -108,7 +140,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
-import { adminApi, type Institution, type ApplicationStatus, type VettingType, type DocumentType } from '@/api/admin'
+import { adminApi, type Institution, type ApplicationStatus, type NameChangeReason, type RejectReason, type VettingType, type DocumentType } from '@/api/admin'
 import UsersManagement from '@/components/admin/UsersManagement.vue'
 import ConfigManagement from '@/components/admin/ConfigManagement.vue'
 import RolesManagement from '@/components/admin/RolesManagement.vue'
@@ -119,6 +151,8 @@ const loading = ref(false)
 
 const institutions = ref<Institution[]>([])
 const applicationStatuses = ref<ApplicationStatus[]>([])
+const nameChangeReasons = ref<NameChangeReason[]>([])
+const rejectReasons = ref<RejectReason[]>([])
 const vettingTypes = ref<VettingType[]>([])
 const documentTypes = ref<DocumentType[]>([])
 
@@ -130,6 +164,22 @@ const institutionHeaders = [
 ]
 
 const statusHeaders = [
+  { title: 'Name', key: 'name' },
+  { title: 'Code', key: 'code' },
+  { title: 'Order', key: 'order' },
+  { title: 'Active', key: 'is_active' },
+  { title: 'Actions', key: 'actions', sortable: false }
+]
+
+const nameChangeReasonHeaders = [
+  { title: 'Name', key: 'name' },
+  { title: 'Code', key: 'code' },
+  { title: 'Order', key: 'order' },
+  { title: 'Active', key: 'is_active' },
+  { title: 'Actions', key: 'actions', sortable: false }
+]
+
+const rejectReasonHeaders = [
   { title: 'Name', key: 'name' },
   { title: 'Code', key: 'code' },
   { title: 'Order', key: 'order' },
@@ -254,6 +304,108 @@ async function handleDeleteStatus(id: number) {
   }
 }
 
+// Name Change Reasons
+async function loadNameChangeReasons() {
+  loading.value = true
+  try {
+    const response = await adminApi.getNameChangeReasons()
+    if (response.data.success) {
+      nameChangeReasons.value = response.data.data || []
+    }
+  } catch (err: any) {
+    toast.error('Failed to load name change reasons')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleCreateNameChangeReason(data: any) {
+  try {
+    const response = await adminApi.createNameChangeReason(data)
+    if (response.data.success) {
+      toast.success('Name change reason created successfully')
+      await loadNameChangeReasons()
+    }
+  } catch (err: any) {
+    toast.error(err.response?.data?.error?.message || 'Failed to create reason')
+  }
+}
+
+async function handleUpdateNameChangeReason(id: number, data: any) {
+  try {
+    const response = await adminApi.updateNameChangeReason(id, data)
+    if (response.data.success) {
+      toast.success('Name change reason updated successfully')
+      await loadNameChangeReasons()
+    }
+  } catch (err: any) {
+    toast.error(err.response?.data?.error?.message || 'Failed to update reason')
+  }
+}
+
+async function handleDeleteNameChangeReason(id: number) {
+  try {
+    const response = await adminApi.deleteNameChangeReason(id)
+    if (response.data.success) {
+      toast.success('Name change reason deleted successfully')
+      await loadNameChangeReasons()
+    }
+  } catch (err: any) {
+    toast.error(err.response?.data?.error?.message || 'Failed to delete reason')
+  }
+}
+
+// Reject Reasons
+async function loadRejectReasons() {
+  loading.value = true
+  try {
+    const response = await adminApi.getRejectReasons()
+    if (response.data.success) {
+      rejectReasons.value = response.data.data || []
+    }
+  } catch (err: any) {
+    toast.error('Failed to load reject reasons')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleCreateRejectReason(data: any) {
+  try {
+    const response = await adminApi.createRejectReason(data)
+    if (response.data.success) {
+      toast.success('Reject reason created successfully')
+      await loadRejectReasons()
+    }
+  } catch (err: any) {
+    toast.error(err.response?.data?.error?.message || 'Failed to create reject reason')
+  }
+}
+
+async function handleUpdateRejectReason(id: number, data: any) {
+  try {
+    const response = await adminApi.updateRejectReason(id, data)
+    if (response.data.success) {
+      toast.success('Reject reason updated successfully')
+      await loadRejectReasons()
+    }
+  } catch (err: any) {
+    toast.error(err.response?.data?.error?.message || 'Failed to update reject reason')
+  }
+}
+
+async function handleDeleteRejectReason(id: number) {
+  try {
+    const response = await adminApi.deleteRejectReason(id)
+    if (response.data.success) {
+      toast.success('Reject reason deleted successfully')
+      await loadRejectReasons()
+    }
+  } catch (err: any) {
+    toast.error(err.response?.data?.error?.message || 'Failed to delete reject reason')
+  }
+}
+
 // Vetting Types
 async function loadVettingTypes() {
   loading.value = true
@@ -360,6 +512,8 @@ onMounted(async () => {
   await Promise.all([
     loadInstitutions(),
     loadApplicationStatuses(),
+    loadNameChangeReasons(),
+    loadRejectReasons(),
     loadVettingTypes(),
     loadDocumentTypes()
   ])

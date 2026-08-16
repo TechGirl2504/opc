@@ -27,15 +27,9 @@
       <v-list density="compact" nav>
         <v-list-item
           prepend-icon="mdi-view-dashboard"
-          title="Dashboard"
+          title="Application Dashboard"
           value="dashboard"
           :to="{ name: 'Dashboard' }"
-        />
-        <v-list-item
-          prepend-icon="mdi-file-document-multiple"
-          :title="authStore.canViewAllApplications ? 'Applications' : 'My Applications'"
-          value="applications"
-          :to="{ name: 'Applications' }"
         />
         <v-list-item
           v-if="authStore.hasPermission('create applications')"
@@ -43,20 +37,6 @@
           title="Create Application"
           value="create"
           :to="{ name: 'CreateApplication' }"
-        />
-        <v-list-item
-          v-if="authStore.hasPermission('conduct police vetting')"
-          prepend-icon="mdi-shield-check"
-          title="Police Vetting"
-          value="police"
-          :to="{ name: 'PoliceVettingList' }"
-        />
-        <v-list-item
-          v-if="authStore.hasPermission('conduct nis vetting')"
-          prepend-icon="mdi-shield-account"
-          title="NIS Vetting"
-          value="nis"
-          :to="{ name: 'NisVettingList' }"
         />
         <v-list-item
           v-if="authStore.hasPermission('view reports')"
@@ -90,9 +70,7 @@
         @click="toggleDrawer"
       />
 
-      <v-toolbar-title class="gov-app-bar__title">
-        CNMIS - {{ authStore.userRole?.replace('_', ' ').toUpperCase() || 'Officer' }}
-      </v-toolbar-title>
+      <v-toolbar-title class="gov-app-bar__title">CNMIS - Application Dashboard</v-toolbar-title>
 
       <v-spacer />
 

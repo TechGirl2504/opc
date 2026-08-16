@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Application;
+use App\Models\DecisionValue;
 use App\Models\VettingRecord;
 use App\Models\VettingType;
 use App\Models\VettingStatus;
@@ -55,6 +56,21 @@ class VettingService
     }
 
     /**
+     * Resolve the rejection reason for a recommendation, or clear it for approvals.
+     */
+    protected function resolveReturnReason(array $data, ?VettingRecord $existing = null): ?string
+    {
+        $rejectRecommendationId = DecisionValue::where('code', 'reject')->value('id');
+        $recommendationId = $data['recommendation_id'] ?? $existing?->recommendation_id;
+
+        if ($rejectRecommendationId && (int) $recommendationId === (int) $rejectRecommendationId) {
+            return $data['return_reason'] ?? $existing?->return_reason;
+        }
+
+        return null;
+    }
+
+    /**
      * Submit police vetting
      */
     public function submitPoliceVetting(Application $application, array $data, User $user, $file = null): VettingRecord
@@ -76,9 +92,8 @@ class VettingService
                 // Update existing record
                 $oldValues = $vettingRecord->toArray();
                 $vettingRecord->update([
-                    'remarks' => $data['remarks'] ?? $vettingRecord->remarks,
-                    'findings' => $data['findings'] ?? $vettingRecord->findings,
                     'recommendation_id' => $data['recommendation_id'] ?? $vettingRecord->recommendation_id,
+                    'return_reason' => $this->resolveReturnReason($data, $vettingRecord),
                     'vetting_date' => $data['vetting_date'] ?? $vettingRecord->vetting_date,
                     'status_id' => $completedStatus->id,
                     'completed_at' => now(),
@@ -90,9 +105,8 @@ class VettingService
                     'vetting_type_id' => $policeType->id,
                     'conducted_by' => $user->id,
                     'status_id' => $completedStatus->id,
-                    'remarks' => $data['remarks'] ?? null,
-                    'findings' => $data['findings'] ?? null,
                     'recommendation_id' => $data['recommendation_id'] ?? null,
+                    'return_reason' => $this->resolveReturnReason($data),
                     'vetting_date' => $data['vetting_date'] ?? now(),
                     'completed_at' => now(),
                 ]);
@@ -165,9 +179,8 @@ class VettingService
                 // Update existing record
                 $oldValues = $vettingRecord->toArray();
                 $vettingRecord->update([
-                    'remarks' => $data['remarks'] ?? $vettingRecord->remarks,
-                    'findings' => $data['findings'] ?? $vettingRecord->findings,
                     'recommendation_id' => $data['recommendation_id'] ?? $vettingRecord->recommendation_id,
+                    'return_reason' => $this->resolveReturnReason($data, $vettingRecord),
                     'vetting_date' => $data['vetting_date'] ?? $vettingRecord->vetting_date,
                     'status_id' => $completedStatus->id,
                     'completed_at' => now(),
@@ -179,9 +192,8 @@ class VettingService
                     'vetting_type_id' => $nisType->id,
                     'conducted_by' => $user->id,
                     'status_id' => $completedStatus->id,
-                    'remarks' => $data['remarks'] ?? null,
-                    'findings' => $data['findings'] ?? null,
                     'recommendation_id' => $data['recommendation_id'] ?? null,
+                    'return_reason' => $this->resolveReturnReason($data),
                     'vetting_date' => $data['vetting_date'] ?? now(),
                     'completed_at' => now(),
                 ]);
@@ -245,9 +257,8 @@ class VettingService
             $oldValues = $vettingRecord->toArray();
 
             $vettingRecord->update([
-                'remarks' => $data['remarks'] ?? $vettingRecord->remarks,
-                'findings' => $data['findings'] ?? $vettingRecord->findings,
                 'recommendation_id' => $data['recommendation_id'] ?? $vettingRecord->recommendation_id,
+                'return_reason' => $this->resolveReturnReason($data, $vettingRecord),
                 'vetting_date' => $data['vetting_date'] ?? $vettingRecord->vetting_date,
             ]);
 
@@ -301,9 +312,8 @@ class VettingService
                 // Update existing record (keep as draft)
                 $oldValues = $vettingRecord->toArray();
                 $vettingRecord->update([
-                    'remarks' => $data['remarks'] ?? $vettingRecord->remarks,
-                    'findings' => $data['findings'] ?? $vettingRecord->findings,
                     'recommendation_id' => $data['recommendation_id'] ?? $vettingRecord->recommendation_id,
+                    'return_reason' => $this->resolveReturnReason($data, $vettingRecord),
                     'vetting_date' => $data['vetting_date'] ?? $vettingRecord->vetting_date,
                     'status_id' => $inProgressStatus->id,
                     'completed_at' => null, // Draft is not completed
@@ -315,9 +325,8 @@ class VettingService
                     'vetting_type_id' => $policeType->id,
                     'conducted_by' => $user->id,
                     'status_id' => $inProgressStatus->id,
-                    'remarks' => $data['remarks'] ?? null,
-                    'findings' => $data['findings'] ?? null,
                     'recommendation_id' => $data['recommendation_id'] ?? null,
+                    'return_reason' => $this->resolveReturnReason($data),
                     'vetting_date' => $data['vetting_date'] ?? now(),
                     'completed_at' => null,
                 ]);
@@ -377,9 +386,8 @@ class VettingService
                 // Update existing record to completed
                 $oldValues = $vettingRecord->toArray();
                 $vettingRecord->update([
-                    'remarks' => $data['remarks'] ?? $vettingRecord->remarks,
-                    'findings' => $data['findings'] ?? $vettingRecord->findings,
                     'recommendation_id' => $data['recommendation_id'] ?? $vettingRecord->recommendation_id,
+                    'return_reason' => $this->resolveReturnReason($data, $vettingRecord),
                     'vetting_date' => $data['vetting_date'] ?? $vettingRecord->vetting_date,
                     'status_id' => $completedStatus->id,
                     'completed_at' => now(),
@@ -391,9 +399,8 @@ class VettingService
                     'vetting_type_id' => $policeType->id,
                     'conducted_by' => $user->id,
                     'status_id' => $completedStatus->id,
-                    'remarks' => $data['remarks'] ?? null,
-                    'findings' => $data['findings'] ?? null,
                     'recommendation_id' => $data['recommendation_id'] ?? null,
+                    'return_reason' => $this->resolveReturnReason($data),
                     'vetting_date' => $data['vetting_date'] ?? now(),
                     'completed_at' => now(),
                 ]);
@@ -465,9 +472,8 @@ class VettingService
                 // Update existing record (keep as draft)
                 $oldValues = $vettingRecord->toArray();
                 $vettingRecord->update([
-                    'remarks' => $data['remarks'] ?? $vettingRecord->remarks,
-                    'findings' => $data['findings'] ?? $vettingRecord->findings,
                     'recommendation_id' => $data['recommendation_id'] ?? $vettingRecord->recommendation_id,
+                    'return_reason' => $this->resolveReturnReason($data, $vettingRecord),
                     'vetting_date' => $data['vetting_date'] ?? $vettingRecord->vetting_date,
                     'status_id' => $inProgressStatus->id,
                     'completed_at' => null, // Draft is not completed
@@ -479,9 +485,8 @@ class VettingService
                     'vetting_type_id' => $nisType->id,
                     'conducted_by' => $user->id,
                     'status_id' => $inProgressStatus->id,
-                    'remarks' => $data['remarks'] ?? null,
-                    'findings' => $data['findings'] ?? null,
                     'recommendation_id' => $data['recommendation_id'] ?? null,
+                    'return_reason' => $this->resolveReturnReason($data),
                     'vetting_date' => $data['vetting_date'] ?? now(),
                     'completed_at' => null,
                 ]);
@@ -541,9 +546,8 @@ class VettingService
                 // Update existing record to completed
                 $oldValues = $vettingRecord->toArray();
                 $vettingRecord->update([
-                    'remarks' => $data['remarks'] ?? $vettingRecord->remarks,
-                    'findings' => $data['findings'] ?? $vettingRecord->findings,
                     'recommendation_id' => $data['recommendation_id'] ?? $vettingRecord->recommendation_id,
+                    'return_reason' => $this->resolveReturnReason($data, $vettingRecord),
                     'vetting_date' => $data['vetting_date'] ?? $vettingRecord->vetting_date,
                     'status_id' => $completedStatus->id,
                     'completed_at' => now(),
@@ -555,9 +559,8 @@ class VettingService
                     'vetting_type_id' => $nisType->id,
                     'conducted_by' => $user->id,
                     'status_id' => $completedStatus->id,
-                    'remarks' => $data['remarks'] ?? null,
-                    'findings' => $data['findings'] ?? null,
                     'recommendation_id' => $data['recommendation_id'] ?? null,
+                    'return_reason' => $this->resolveReturnReason($data),
                     'vetting_date' => $data['vetting_date'] ?? now(),
                     'completed_at' => now(),
                 ]);
@@ -675,4 +678,3 @@ class VettingService
     }
 
 }
-

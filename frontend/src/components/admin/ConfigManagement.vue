@@ -106,6 +106,7 @@ const props = defineProps<{
   items: any[]
   loading: boolean
   headers: any[]
+  showOrder?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -132,7 +133,7 @@ const form = reactive({
   is_active: true
 })
 
-const showOrder = computed(() => props.title.includes('Status'))
+const showOrder = computed(() => props.showOrder ?? props.title.includes('Status'))
 const showMaxSize = computed(() => props.title.includes('Document'))
 const showAllowedMimes = computed(() => props.title.includes('Document'))
 
@@ -194,4 +195,3 @@ function confirmDelete(item: any) {
   }
 }
 </script>
-

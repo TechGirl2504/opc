@@ -21,6 +21,7 @@ class UploadFailureTest extends TestCase
         $this->seed([
             \Database\Seeders\InstitutionSeeder::class,
             \Database\Seeders\ApplicationStatusSeeder::class,
+            \Database\Seeders\NameChangeReasonSeeder::class,
             \Database\Seeders\DocumentTypeSeeder::class,
             \Database\Seeders\VettingTypeSeeder::class,
             \Database\Seeders\RolePermissionSeeder::class,
@@ -42,9 +43,8 @@ class UploadFailureTest extends TestCase
                 'district' => 'Rumphi',
                 'traditional_authority' => 'Mwamulowe',
                 'village' => 'Luwuchi',
-                'current_name' => 'John Smith',
                 'requested_name' => 'John Doe',
-                'reason' => 'Name change due to marriage.',
+                'reason' => 'To match with bank details',
                 'documents' => [
                     UploadedFile::fake()->create('oversized-supporting.pdf', 52001, 'application/pdf'),
                 ],
@@ -67,7 +67,7 @@ class UploadFailureTest extends TestCase
 
         $application = Application::factory()->create([
             'created_by' => $creator->id,
-            'status_id' => ApplicationStatus::where('code', 'pending')->value('id'),
+            'status_id' => ApplicationStatus::where('code', 'handoff_to_admin')->value('id'),
         ]);
 
         $beforeDocumentCount = \App\Models\Document::count();

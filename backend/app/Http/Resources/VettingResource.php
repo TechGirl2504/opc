@@ -39,6 +39,7 @@ class VettingResource extends JsonResource
             }),
             'remarks' => $this->remarks,
             'findings' => $this->findings,
+            'return_reason' => $this->return_reason,
             'recommendation' => $this->whenLoaded('recommendation', function () {
                 return [
                     'id' => $this->recommendation->id,

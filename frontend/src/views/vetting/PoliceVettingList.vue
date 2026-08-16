@@ -173,8 +173,8 @@ const pagination = reactive({
 
 const headers = [
   { title: 'Application #', key: 'application_number', sortable: false },
-  { title: 'Full Name', key: 'full_name' },
-  { title: 'Requested Name', key: 'requested_name' },
+  { title: 'Current Full Name', key: 'full_name' },
+  { title: 'Requested Full Name', key: 'requested_name' },
   { title: 'Status', key: 'status', sortable: false },
   { title: 'Police Vetting', key: 'police_vetting', sortable: false },
   { title: 'Created', key: 'created_at' },

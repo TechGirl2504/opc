@@ -49,9 +49,13 @@ class ApplicationController extends Controller
                 'search' => $request->get('search'),
                 'status_id' => $request->get('status_id'),
                 'status' => $request->get('status'),
+                'review_state' => $request->get('review_state'),
                 'created_by' => $request->get('created_by'),
                 'assigned_police_officer_id' => $request->get('assigned_police_officer_id'),
                 'assigned_nis_officer_id' => $request->get('assigned_nis_officer_id'),
+                'assigned_opc_approver_id' => $request->get('assigned_opc_approver_id'),
+                'vetting_type' => $request->get('vetting_type'),
+                'vetting_state' => $request->get('vetting_state'),
                 'date_from' => $request->get('date_from'),
                 'date_to' => $request->get('date_to'),
                 'order_by' => $request->get('order_by', 'created_at'),
@@ -68,6 +72,7 @@ class ApplicationController extends Controller
                     'assignedPoliceOfficer',
                     'assignedNisOfficer',
                     'assignedOpcApprover',
+                    'nameChangeReason',
                 ]);
 
                 return (new ApplicationResource($application))->resolve($request);
@@ -137,7 +142,7 @@ class ApplicationController extends Controller
             }
 
             // Reload application with documents
-            $application->load(['documents.documentType', 'documents.uploadedBy']);
+            $application->load(['documents.documentType', 'documents.uploadedBy', 'nameChangeReason', 'status', 'createdBy']);
 
             return response()->json([
                 'success' => true,
@@ -177,6 +182,7 @@ class ApplicationController extends Controller
                 'assignedPoliceOfficer',
                 'assignedNisOfficer',
                 'assignedOpcApprover',
+                'nameChangeReason',
                 'documents.documentType',
                 'documents.uploadedBy',
                 'vettingRecords.vettingType',
@@ -322,7 +328,7 @@ class ApplicationController extends Controller
     }
 
     /**
-     * Send a pending application back to data entry for corrections.
+     * Send an application back to data entry for corrections.
      */
     public function sendBackToDataEntry(SendBackToDataEntryRequest $request, string $id): JsonResponse
     {
@@ -368,6 +374,57 @@ class ApplicationController extends Controller
                 'error' => [
                     'code' => 'SEND_BACK_FAILED',
                     'message' => 'Failed to send back application to data entry',
+                ],
+                'meta' => [
+                    'timestamp' => now()->toIso8601String(),
+                ],
+            ], 400);
+        }
+    }
+
+    /**
+     * Forward a draft application to admin for review.
+     */
+    public function forwardToAdmin(Request $request, string $id): JsonResponse
+    {
+        try {
+            $application = Application::findOrFail($id);
+            if (!$this->applicationService->canAccessApplication($application, $request->user())) {
+                return $this->forbiddenApplicationResponse();
+            }
+
+            $application = $this->applicationService->forwardToAdmin($application, $request->user());
+
+            return response()->json([
+                'success' => true,
+                'data' => $application,
+                'message' => 'Application forwarded to admin successfully',
+                'meta' => [
+                    'timestamp' => now()->toIso8601String(),
+                ],
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'NOT_FOUND',
+                    'message' => 'Application not found',
+                ],
+                'meta' => [
+                    'timestamp' => now()->toIso8601String(),
+                ],
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Failed to forward application to admin', [
+                'application_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'FORWARD_FAILED',
+                    'message' => 'Failed to forward application to admin',
                 ],
                 'meta' => [
                     'timestamp' => now()->toIso8601String(),
@@ -698,7 +755,7 @@ class ApplicationController extends Controller
     }
 
     /**
-     * Forward application from OPC review to pending approval
+     * Forward application from OPC review to final approval
      */
     public function forwardToApproval(Request $request, string $id): JsonResponse
     {

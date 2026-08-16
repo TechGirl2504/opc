@@ -20,6 +20,7 @@ class WorkflowControllerTest extends TestCase
         $this->seed([
             \Database\Seeders\InstitutionSeeder::class,
             \Database\Seeders\ApplicationStatusSeeder::class,
+            \Database\Seeders\NameChangeReasonSeeder::class,
             \Database\Seeders\VettingTypeSeeder::class,
             \Database\Seeders\VettingStatusSeeder::class,
             \Database\Seeders\DecisionValueSeeder::class,
@@ -29,14 +30,14 @@ class WorkflowControllerTest extends TestCase
 
     public function test_application_detail_exposes_backend_allowed_actions(): void
     {
-        $pendingStatus = ApplicationStatus::where('code', 'pending')->firstOrFail();
+        $handoffStatus = ApplicationStatus::where('code', 'handoff_to_admin')->firstOrFail();
 
         $creator = User::factory()->create();
         $creator->assignRole('opc_data_entry');
 
         $application = Application::factory()->create([
             'created_by' => $creator->id,
-            'status_id' => $pendingStatus->id,
+            'status_id' => $handoffStatus->id,
         ]);
 
         $response = $this->actingAs($creator, 'sanctum')
@@ -48,7 +49,7 @@ class WorkflowControllerTest extends TestCase
 
     public function test_main_workflow_happy_path_is_enforced_by_http_endpoints(): void
     {
-        $pendingStatus = ApplicationStatus::where('code', 'pending')->firstOrFail();
+        $handoffStatus = ApplicationStatus::where('code', 'handoff_to_admin')->firstOrFail();
         $opcReviewStatus = ApplicationStatus::where('code', 'opc_review')->firstOrFail();
         $pendingApprovalStatus = ApplicationStatus::where('code', 'pending_approval')->firstOrFail();
         $policeVettingStatus = ApplicationStatus::where('code', 'police_vetting')->firstOrFail();
@@ -76,13 +77,12 @@ class WorkflowControllerTest extends TestCase
                 'district' => 'Rumphi',
                 'traditional_authority' => 'Mwamulowe',
                 'village' => 'Luwuchi',
-                'current_name' => 'Workflow Old',
-                'requested_name' => 'Workflow Test',
-                'reason' => 'Name change due to marriage.',
+                'requested_name' => 'Workflow Preferred',
+                'reason' => 'To match with bank details',
             ]);
 
         $createResponse->assertCreated()
-            ->assertJsonPath('data.status.code', $pendingStatus->code);
+            ->assertJsonPath('data.status.code', $handoffStatus->code);
 
         $applicationId = $createResponse->json('data.id');
 
@@ -128,12 +128,12 @@ class WorkflowControllerTest extends TestCase
 
         $approverResponse = $this->actingAs($approver, 'sanctum')
             ->postJson("/api/v1/applications/{$applicationId}/send-back-to-admin", [
-                'reason' => 'Please review the final supporting details.',
+                'reason' => 'To match with clan name',
             ]);
 
         $approverResponse->assertOk()
             ->assertJsonPath('data.status.code', $opcReviewStatus->code)
-            ->assertJsonPath('data.approver_send_back_reason', 'Please review the final supporting details.');
+            ->assertJsonPath('data.approver_send_back_reason', 'To match with clan name');
     }
 
     public function test_police_completion_still_succeeds_when_push_storage_is_unavailable(): void

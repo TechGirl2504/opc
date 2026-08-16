@@ -9,11 +9,11 @@
               {{ application.application_number }}
             </h1>
             <v-chip
-              :color="getStatusColor(application.status?.code)"
+              :color="detailStatusColor"
               variant="flat"
               size="small"
             >
-              {{ application.status?.name }}
+              {{ detailStatusLabel }}
             </v-chip>
           </div>
           <div class="detail-hero__meta">
@@ -34,7 +34,7 @@
             class="detail-hero__button"
             variant="tonal"
             prepend-icon="mdi-arrow-left"
-            @click="$router.push({ name: 'Applications' })"
+            @click="goBack"
           >
             Back to List
           </v-btn>
@@ -55,12 +55,24 @@
           <v-card-text>
             <div class="info-grid">
               <div class="info-item">
-                <div class="info-label">Full Name</div>
+                <div class="info-label">Current Full Name</div>
                 <div class="info-value">{{ application.full_name }}</div>
               </div>
               <div class="info-item">
                 <div class="info-label">National ID</div>
                 <div class="info-value">{{ application.national_id }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Date of Birth</div>
+                <div class="info-value">{{ formatDateOnly(application.date_of_birth) }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Phone Number</div>
+                <div class="info-value">{{ application.phone_number || 'Not provided' }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Email Address</div>
+                <div class="info-value">{{ application.email || 'Not provided' }}</div>
               </div>
               <div class="info-item">
                 <div class="info-label">District</div>
@@ -74,17 +86,15 @@
                 <div class="info-label">Village</div>
                 <div class="info-value">{{ application.village }}</div>
               </div>
-              <div class="info-item">
-                <div class="info-label">Current Name</div>
-                <div class="info-value">{{ application.current_name }}</div>
-              </div>
               <div class="info-item info-item--highlight">
-                <div class="info-label">Requested Name</div>
+                <div class="info-label">Requested Full Name</div>
                 <div class="info-value">{{ application.requested_name }}</div>
               </div>
               <div class="info-item info-item--wide">
-                <div class="info-label">Reason</div>
-                <div class="info-value info-value--rich">{{ application.reason }}</div>
+                <div class="info-label">Reason for Change</div>
+                <div class="info-value info-value--rich">
+                  {{ application.name_change_reason?.name || application.reason || 'Not provided' }}
+                </div>
               </div>
             </div>
           </v-card-text>
@@ -237,6 +247,19 @@
               >
                 Send Back to Data Entry
               </v-btn>
+
+              <v-btn
+                v-if="canForwardToAdmin"
+                block
+                color="primary"
+                variant="tonal"
+                size="large"
+                prepend-icon="mdi-arrow-right"
+                class="action-button mb-2"
+                @click="showForwardToAdminDialog = true"
+              >
+                Forward to Admin
+              </v-btn>
             </div>
 
             <div class="action-section" v-if="canDoPoliceVetting || canDoNisVetting">
@@ -331,7 +354,7 @@
                 size="large"
                 prepend-icon="mdi-close"
                 class="action-button mb-2"
-                @click="showDenyDialog = true"
+                @click="openDenyDialog"
               >
                 Deny
               </v-btn>
@@ -351,9 +374,9 @@
             </div>
 
             <div class="action-section" v-if="canHandleApproverSendBack">
-              <div class="action-section__label">Approver Return</div>
+              <div class="action-section__label">Returned</div>
               <v-alert type="warning" variant="tonal" density="compact" class="mb-3">
-                <div class="font-weight-medium mb-1">Returned from approver review</div>
+                <div class="font-weight-medium mb-1">Returned</div>
                 <div class="text-body-2">
                   {{ application?.approver_send_back_reason || 'The approver returned this file for further action.' }}
                 </div>
@@ -447,7 +470,7 @@
                 <div class="info-value">{{ application.assigned_opc_approver?.username }}</div>
               </div>
               <div v-if="application.approver_send_back_reason" class="side-meta__item">
-                <div class="info-label">Returned from Approver</div>
+                <div class="info-label">Returned reason</div>
                 <div class="info-value info-value--rich">{{ application.approver_send_back_reason }}</div>
               </div>
               <div v-if="application.assigned_police_officer" class="side-meta__item">
@@ -794,12 +817,9 @@
       <v-card>
         <v-card-title>Approve Application</v-card-title>
         <v-card-text>
-          <v-textarea
-            v-model="approveNotes"
-            label="Notes (optional)"
-            variant="outlined"
-            rows="3"
-          />
+          <v-alert color="success" variant="tonal">
+            Confirming this will approve the application.
+          </v-alert>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -814,19 +834,51 @@
       <v-card>
         <v-card-title>Deny Application</v-card-title>
         <v-card-text>
-          <v-textarea
-            v-model="denyReason"
-            label="Reason *"
-            variant="outlined"
-            rows="3"
-            :rules="denyReasonRules"
-            required
-          />
+          <v-alert type="warning" variant="tonal" class="mb-4">
+            Select a rejection reason. These options are managed by administrators.
+          </v-alert>
+          <v-radio-group v-model="selectedDenyReasonId" :rules="denyReasonRules">
+            <div v-if="rejectReasonOptions.length" class="reason-list">
+              <label
+                v-for="reason in rejectReasonOptions"
+                :key="reason.id"
+                class="reason-choice"
+              >
+                <v-radio :value="reason.id" class="reason-choice__radio" />
+                <span class="reason-choice__label">{{ reason.name }}</span>
+              </label>
+            </div>
+            <v-alert
+              v-else
+              type="info"
+              variant="tonal"
+              density="compact"
+            >
+              No active reject reasons are available. Ask an administrator to configure them first.
+            </v-alert>
+          </v-radio-group>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="showDenyDialog = false">Cancel</v-btn>
+          <v-btn variant="text" @click="cancelDenyDialog">Cancel</v-btn>
           <v-btn color="error" @click="denyApplication">Deny</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Forward to Admin Dialog -->
+    <v-dialog v-model="showForwardToAdminDialog" max-width="500">
+      <v-card>
+        <v-card-title>Forward to Admin</v-card-title>
+        <v-card-text>
+          <v-alert color="primary" variant="tonal">
+            This will hand off the application to admin for review.
+          </v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showForwardToAdminDialog = false">Cancel</v-btn>
+          <v-btn color="primary" @click="forwardToAdmin">Forward</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -1030,13 +1082,13 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { applicationsApi, type Application } from '@/api/applications'
+import { applicationsApi, type Application, type RejectReason } from '@/api/applications'
 import { documentsApi } from '@/api/documents'
 import { adminApi } from '@/api/admin'
 import { decisionsApi } from '@/api/decisions'
 import { usersApi } from '@/api/users'
 import { useToast } from 'vue-toastification'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import PoliceVettingCard from '@/components/PoliceVettingCard.vue'
 import NisVettingCard from '@/components/NisVettingCard.vue'
 import { vettingApi, type VettingRecord } from '@/api/vetting'
@@ -1064,14 +1116,15 @@ const showPreviewDialog = ref(false)
 const previewDocumentData = ref<any>(null)
 const previewUrl = ref<string | null>(null)
 const previewLoading = ref(false)
-const approveNotes = ref('')
-const denyReason = ref('')
+const rejectReasonOptions = ref<RejectReason[]>([])
+const selectedDenyReasonId = ref<number | null>(null)
 const vettingTab = ref('police')
 
 // Send back state
 const showSendBackPoliceDialog = ref(false)
 const showSendBackNisDialog = ref(false)
 const showSendBackToDataEntryDialog = ref(false)
+const showForwardToAdminDialog = ref(false)
 const sendBackReason = ref('')
 const sendBackToDataEntryReason = ref('')
 const sendingBack = ref(false)
@@ -1088,7 +1141,7 @@ const handleSendBackAction = ref<'send_to_police' | 'send_to_nis' | null>(null)
 const handleSendBackReason = ref('')
 
 // UI validation rules (keep these in script; Vue templates cannot contain TS type annotations)
-const denyReasonRules = [(v: string) => !!v || 'Reason is required']
+const denyReasonRules = [(v: number | null) => !!v || 'Reason is required']
 const sendBackReasonRules = [
   (v: string) => !!v || 'Reason is required',
   (v: string) => (v && v.length >= 10) || 'Reason must be at least 10 characters',
@@ -1122,26 +1175,31 @@ function hasAllowedAction(action: string): boolean {
   return allowedActions.value.includes(action)
 }
 
+const isAdminUser = computed(() => authStore.isAdmin)
 const canEditApplication = computed(() => hasAllowedAction('edit_application'))
 const canDoPoliceVetting = computed(() => hasAllowedAction('conduct_police_vetting'))
 const canDoNisVetting = computed(() => hasAllowedAction('conduct_nis_vetting'))
-const canSendBackPolice = computed(() => hasAllowedAction('send_back_police_vetting'))
-const canSendBackNis = computed(() => hasAllowedAction('send_back_nis_vetting'))
+const canSendBackPolice = computed(() => isAdminUser.value && hasAllowedAction('send_back_police_vetting'))
+const canSendBackNis = computed(() => isAdminUser.value && hasAllowedAction('send_back_nis_vetting'))
 const canSendBackToDataEntry = computed(() => hasAllowedAction('send_back_to_data_entry'))
-const canForwardToApproval = computed(() => hasAllowedAction('forward_to_approval'))
+const canForwardToAdmin = computed(() => hasAllowedAction('forward_to_admin'))
+const canForwardToApproval = computed(() => isAdminUser.value && hasAllowedAction('forward_to_approval'))
 const canApprove = computed(() => hasAllowedAction('approve_application'))
 const canDeny = computed(() => hasAllowedAction('deny_application'))
 const canSendBackToAdmin = computed(() => hasAllowedAction('send_back_to_admin'))
 const canHandleApproverSendBack = computed(() => hasAllowedAction('handle_approver_send_back'))
 const canAssignPolice = computed(() => hasAllowedAction('assign_police_officer'))
 const canAssignNis = computed(() => hasAllowedAction('assign_nis_officer'))
-const canUploadDocuments = computed(() => hasAllowedAction('upload_documents'))
+const canUploadDocuments = computed(() =>
+  hasAllowedAction('upload_documents') && authStore.hasAnyRole(['admin', 'opc_data_entry'])
+)
 const canDownloadDocuments = computed(() => hasAllowedAction('download_documents'))
 const canDeleteDocuments = computed(() => hasAllowedAction('delete_documents'))
 const currentApplicationId = computed(() => Number(route.params.id))
 const hasSidebarActions = computed(() => [
   canEditApplication.value,
   canSendBackToDataEntry.value,
+  canForwardToAdmin.value,
   canDoPoliceVetting.value,
   canDoNisVetting.value,
   canAssignPolice.value,
@@ -1164,9 +1222,38 @@ const canDeleteDocument = (doc: any) => {
   return authStore.isAdmin
 }
 
+const detailStatusLabel = computed(() => {
+  const statusCode = application.value?.status?.code ?? ''
+
+  if (authStore.hasAnyRole(['police_officer']) && statusCode === 'opc_review' && application.value?.police_vetting_completed_at) {
+    return 'Completed'
+  }
+
+  if (authStore.hasAnyRole(['nis_officer']) && statusCode === 'opc_review' && application.value?.nis_vetting_completed_at) {
+    return 'Completed'
+  }
+
+  return application.value?.status?.name || 'Unknown'
+})
+
+const detailStatusColor = computed(() => {
+  const statusCode = application.value?.status?.code ?? ''
+
+  if (authStore.hasAnyRole(['police_officer']) && statusCode === 'opc_review' && application.value?.police_vetting_completed_at) {
+    return 'success'
+  }
+
+  if (authStore.hasAnyRole(['nis_officer']) && statusCode === 'opc_review' && application.value?.nis_vetting_completed_at) {
+    return 'success'
+  }
+
+  return getStatusColor(statusCode)
+})
+
 function getStatusColor(statusCode: string) {
   const colors: Record<string, string> = {
-    'pending': 'info',
+    'draft': 'grey',
+    'handoff_to_admin': 'primary',
     'returned_to_data_entry': 'warning',
     'opc_review': 'purple',
     'police_completed': 'teal',
@@ -1184,6 +1271,11 @@ function getStatusColor(statusCode: string) {
 function formatDate(date: string) {
   if (!date) return ''
   return format(new Date(date), 'MMM dd, yyyy HH:mm')
+}
+
+function formatDateOnly(date?: string | null) {
+  if (!date) return 'Not provided'
+  return format(parseISO(date), 'MMM dd, yyyy')
 }
 
 function formatFileSize(bytes: number) {
@@ -1343,7 +1435,7 @@ async function fetchApplication() {
     }
   } catch (error) {
     toast.error('Failed to fetch application')
-    router.push({ name: 'Applications' })
+    router.push({ name: 'Dashboard' })
   } finally {
     loading.value = false
   }
@@ -1581,10 +1673,9 @@ async function deleteDocument(id: number) {
 
 async function approveApplication() {
   try {
-    await decisionsApi.approve(Number(route.params.id), { notes: approveNotes.value })
+    await decisionsApi.approve(Number(route.params.id), {})
     toast.success('Application approved successfully')
     showApproveDialog.value = false
-    approveNotes.value = ''
     fetchApplication()
     fetchDecisions()
   } catch (error: any) {
@@ -1592,21 +1683,48 @@ async function approveApplication() {
   }
 }
 
+function openDenyDialog() {
+  selectedDenyReasonId.value = null
+  showDenyDialog.value = true
+}
+
+function cancelDenyDialog() {
+  showDenyDialog.value = false
+  selectedDenyReasonId.value = null
+}
+
 async function denyApplication() {
-  if (!denyReason.value) {
+  if (!selectedDenyReasonId.value) {
     toast.error('Please provide a reason')
     return
   }
 
+  const selectedReason = rejectReasonOptions.value.find(reason => reason.id === selectedDenyReasonId.value)
+
+  if (!selectedReason) {
+    toast.error('Please select a valid rejection reason')
+    return
+  }
+
   try {
-    await decisionsApi.deny(Number(route.params.id), { reason: denyReason.value })
+    await decisionsApi.deny(Number(route.params.id), { reason: selectedReason.name })
     toast.success('Application denied')
-    showDenyDialog.value = false
-    denyReason.value = ''
+    cancelDenyDialog()
     fetchApplication()
     fetchDecisions()
   } catch (error: any) {
     toast.error('Failed to deny application')
+  }
+}
+
+async function fetchRejectReasons() {
+  try {
+    const response = await applicationsApi.getRejectReasons()
+    if (response.data.success) {
+      rejectReasonOptions.value = response.data.data || []
+    }
+  } catch (error) {
+    console.error('Failed to load reject reasons:', error)
   }
 }
 
@@ -1616,7 +1734,11 @@ function editApplication() {
     return
   }
 
-  router.push({ name: 'EditApplication', params: { id: currentApplicationId.value } })
+  router.push({
+    name: 'EditApplication',
+    params: { id: currentApplicationId.value },
+    query: { returnTo: route.fullPath }
+  })
 }
 
 async function fetchOfficers() {
@@ -1897,6 +2019,31 @@ async function sendBackToDataEntry() {
   }
 }
 
+async function forwardToAdmin() {
+  if (!Number.isFinite(currentApplicationId.value)) {
+    toast.error('Application not found')
+    return
+  }
+
+  forwarding.value = true
+  try {
+    const response = await applicationsApi.forwardToAdmin(currentApplicationId.value)
+    if (response.data.success) {
+      toast.success(response.data.message || 'Application forwarded to admin successfully')
+      showForwardToAdminDialog.value = false
+      await fetchApplication()
+    }
+  } catch (error: any) {
+    console.error('Forward to admin error:', error)
+    const errorMessage = error.response?.data?.error?.message ||
+                        error.response?.data?.message ||
+                        'Failed to forward application to admin'
+    toast.error(errorMessage)
+  } finally {
+    forwarding.value = false
+  }
+}
+
 async function handleApproverSendBack() {
   if (!handleSendBackAction.value || !Number.isFinite(currentApplicationId.value)) return
 
@@ -1935,11 +2082,27 @@ function openHandleSendBackDialog(action: 'send_to_police' | 'send_to_nis') {
   showHandleSendBackDialog.value = true
 }
 
+function goBack() {
+  const returnTo = route.query.returnTo
+  if (typeof returnTo === 'string' && returnTo) {
+    router.push(returnTo)
+    return
+  }
+
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+
+  router.push({ name: 'Dashboard' })
+}
+
 onMounted(() => {
   fetchApplication()
   fetchDocuments()
   fetchDecisions()
   fetchDocumentTypes()
+  fetchRejectReasons()
 })
 
 // Watch for route changes to refresh data when navigating back from edit
@@ -2092,6 +2255,30 @@ onUnmounted(() => {
 
 .vetting-tabs {
   margin-bottom: 12px;
+}
+
+.reason-list {
+  display: grid;
+  gap: 10px;
+}
+
+.reason-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.reason-choice__radio {
+  margin-top: 0;
+  margin-right: 0;
+}
+
+.reason-choice__label {
+  font-size: 0.98rem;
+  line-height: 1.45;
+  color: rgba(15, 23, 42, 0.94);
 }
 
 .action-card {

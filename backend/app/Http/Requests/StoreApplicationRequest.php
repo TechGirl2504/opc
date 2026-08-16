@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\NameChangeReason;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -29,9 +30,27 @@ class StoreApplicationRequest extends FormRequest
                 'regex:/^[a-zA-Z\s]+$/',
             ],
             'national_id' => [
-                'nullable',
+                'required',
                 'string',
                 'regex:/^[A-Z0-9]{8}$/',
+                'unique:applications,national_id',
+            ],
+            'date_of_birth' => [
+                'nullable',
+                'date',
+                'before:today',
+            ],
+            'phone_number' => [
+                'nullable',
+                'string',
+                'max:25',
+                'regex:/^[0-9+\-\s()]+$/',
+            ],
+            'email' => [
+                'nullable',
+                'string',
+                'max:255',
+                'email',
             ],
             'district' => [
                 'required',
@@ -48,23 +67,24 @@ class StoreApplicationRequest extends FormRequest
                 'string',
                 'max:255',
             ],
-            'current_name' => [
-                'nullable',
-                'string',
-                'max:255',
-            ],
             'requested_name' => [
                 'required',
                 'string',
                 'min:2',
                 'max:255',
-                'different:current_name',
+                'different:full_name',
+            ],
+            'reason_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('name_change_reasons', 'id'),
             ],
             'reason' => [
-                'required',
+                'required_without:reason_id',
+                'nullable',
                 'string',
-                'min:10',
-                'max:5000',
+                'max:255',
+                Rule::in($this->activeReasonNames()),
             ],
             'documents' => [
                 'nullable',
@@ -89,6 +109,12 @@ class StoreApplicationRequest extends FormRequest
             'full_name.max' => 'Full name must not exceed 255 characters.',
             'full_name.regex' => 'Full name must contain only alphabetic characters and spaces.',
             'national_id.regex' => 'National ID must be exactly 8 characters with uppercase letters and numbers only (e.g., ABC12345).',
+            'national_id.required' => 'National ID is required.',
+            'national_id.unique' => 'This National ID already exists. Use a different National ID.',
+            'date_of_birth.before' => 'Date of birth must be a past date.',
+            'phone_number.regex' => 'Phone number may contain only digits, spaces, plus signs, hyphens, and parentheses.',
+            'email.email' => 'Email address must be a valid email.',
+            'email.max' => 'Email address must not exceed 255 characters.',
             'district.required' => 'District is required.',
             'district.max' => 'District must not exceed 255 characters.',
             'traditional_authority.required' => 'T/A is required.',
@@ -98,12 +124,27 @@ class StoreApplicationRequest extends FormRequest
             'requested_name.required' => 'Requested name is required.',
             'requested_name.min' => 'Requested name must be at least 2 characters.',
             'requested_name.max' => 'Requested name must not exceed 255 characters.',
-            'requested_name.different' => 'Requested name must be different from current name.',
+            'requested_name.different' => 'Requested name must be different from current full name.',
+            'reason_id.integer' => 'Please select a valid reason for change.',
+            'reason_id.exists' => 'Please select a valid reason for change.',
             'reason.required' => 'Reason for change is required.',
-            'reason.min' => 'Reason must be at least 10 characters.',
-            'reason.max' => 'Reason must not exceed 5000 characters.',
+            'reason.in' => 'Select a valid reason for change.',
+            'reason.max' => 'Reason must not exceed 255 characters.',
             'documents.*.max' => 'Each document must not exceed 50MB.',
             'documents.*.mimes' => 'Documents must be PDF, JPG, JPEG, or PNG files.',
         ];
+    }
+
+    /**
+     * Get the active managed reason labels.
+     */
+    protected function activeReasonNames(): array
+    {
+        return NameChangeReason::query()
+            ->where('is_active', true)
+            ->orderBy('order')
+            ->orderBy('name')
+            ->pluck('name')
+            ->all();
     }
 }

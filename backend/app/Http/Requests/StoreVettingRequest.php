@@ -4,6 +4,8 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use App\Models\Application;
+use App\Models\DecisionValue;
+use Illuminate\Validation\Rule;
 
 class StoreVettingRequest extends FormRequest
 {
@@ -37,10 +39,16 @@ class StoreVettingRequest extends FormRequest
      */
     public function rules(): array
     {
+        $rejectRecommendationId = DecisionValue::where('code', 'reject')->value('id');
+
         return [
-            'remarks' => 'nullable|string|max:5000',
-            'findings' => 'nullable|string|max:5000',
-            'recommendation_id' => 'nullable|integer|exists:decision_values,id',
+            'return_reason' => [
+                Rule::requiredIf(fn () => $rejectRecommendationId && (int) $this->input('recommendation_id') === (int) $rejectRecommendationId),
+                'nullable',
+                'string',
+                'max:5000',
+            ],
+            'recommendation_id' => 'required|integer|exists:decision_values,id',
             'vetting_date' => 'nullable|date',
             'document' => 'nullable|file|max:51200|mimes:pdf,jpg,jpeg,png',
         ];
@@ -55,6 +63,9 @@ class StoreVettingRequest extends FormRequest
             'document.max' => 'Vetting report must not exceed 50MB.',
             'document.mimes' => 'Vetting report must be PDF, JPG, JPEG, or PNG file.',
             'recommendation_id.exists' => 'Selected recommendation is invalid.',
+            'recommendation_id.required' => 'Please select a recommendation.',
+            'return_reason.required' => 'Please provide a rejection reason.',
+            'return_reason.max' => 'Rejection reason must not exceed 5000 characters.',
         ];
     }
 }

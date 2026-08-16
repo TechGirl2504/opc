@@ -115,6 +115,8 @@ class AuditService
     {
         $query = AuditLog::with('user');
 
+        $search = trim((string) ($filters['search'] ?? ''));
+
         // Filter by user
         if (isset($filters['user_id']) && $filters['user_id']) {
             $query->where('user_id', $filters['user_id']);
@@ -135,6 +137,19 @@ class AuditService
             $query->where('model_id', $filters['model_id']);
         }
 
+        if ($search !== '') {
+            $like = "%{$search}%";
+            $query->where(function ($q) use ($like) {
+                $q->where('action', 'like', $like)
+                    ->orWhere('model_type', 'like', $like)
+                    ->orWhere('model_id', 'like', $like)
+                    ->orWhereHas('user', function ($userQuery) use ($like) {
+                        $userQuery->where('username', 'like', $like)
+                            ->orWhere('email', 'like', $like);
+                    });
+            });
+        }
+
         // Date range filters
         if (isset($filters['date_from']) && $filters['date_from']) {
             $query->whereDate('created_at', '>=', $filters['date_from']);
@@ -152,4 +167,3 @@ class AuditService
         return $query->paginate($perPage);
     }
 }
-

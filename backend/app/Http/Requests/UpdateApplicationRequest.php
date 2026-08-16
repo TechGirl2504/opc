@@ -5,6 +5,8 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use App\Models\Application;
 use App\Models\ApplicationStatus;
+use App\Models\NameChangeReason;
+use Illuminate\Validation\Rule;
 
 class UpdateApplicationRequest extends FormRequest
 {
@@ -29,7 +31,8 @@ class UpdateApplicationRequest extends FormRequest
         }
 
         $application->loadMissing('status');
-        $pendingStatus = ApplicationStatus::where('code', 'pending')->first();
+        $draftStatus = ApplicationStatus::where('code', 'draft')->first();
+        $handoffStatus = ApplicationStatus::where('code', 'handoff_to_admin')->first();
         $returnedStatus = ApplicationStatus::where('code', 'returned_to_data_entry')->first();
         $opcReviewStatus = ApplicationStatus::where('code', 'opc_review')->first();
         $isAdminReviewAfterApproverReturn = $user->hasRole('admin')
@@ -45,20 +48,20 @@ class UpdateApplicationRequest extends FormRequest
             return false;
         }
 
-        // Data entry can edit their own pending application.
+        // Data entry can edit their own draft or handoff record.
         if (
             $user->hasPermissionTo('create applications')
-            && in_array($application->status_id, [$pendingStatus?->id, $returnedStatus?->id], true)
+            && in_array($application->status_id, [$draftStatus?->id, $handoffStatus?->id, $returnedStatus?->id], true)
             && (int) $application->created_by === (int) $user->id
         ) {
             return true;
         }
 
-        // Admin can edit an unassigned pending application for minor corrections.
+        // Admin can edit an unassigned handoff application for minor corrections.
         // Admin can also edit an OPC review file after the approver has sent it back.
         if (
             $user->hasRole('admin')
-            && $application->status_id === $pendingStatus?->id
+            && in_array($application->status_id, [$handoffStatus?->id], true)
         ) {
             return true;
         }
@@ -81,9 +84,30 @@ class UpdateApplicationRequest extends FormRequest
                 'regex:/^[a-zA-Z\s]+$/',
             ],
             'national_id' => [
-                'nullable',
+                'sometimes',
+                'required',
                 'string',
                 'regex:/^[A-Z0-9]{8}$/',
+                Rule::unique('applications', 'national_id')
+                    ->ignore($this->route('id'))
+                    ->whereNull('deleted_at'),
+            ],
+            'date_of_birth' => [
+                'nullable',
+                'date',
+                'before:today',
+            ],
+            'phone_number' => [
+                'nullable',
+                'string',
+                'max:25',
+                'regex:/^[0-9+\-\s()]+$/',
+            ],
+            'email' => [
+                'nullable',
+                'string',
+                'max:255',
+                'email',
             ],
             'district' => [
                 'sometimes',
@@ -103,25 +127,26 @@ class UpdateApplicationRequest extends FormRequest
                 'string',
                 'max:255',
             ],
-            'current_name' => [
-                'nullable',
-                'string',
-                'max:255',
-            ],
             'requested_name' => [
                 'sometimes',
                 'required',
                 'string',
                 'min:2',
                 'max:255',
-                'different:current_name',
+                'different:full_name',
+            ],
+            'reason_id' => [
+                'sometimes',
+                'nullable',
+                'integer',
+                Rule::exists('name_change_reasons', 'id'),
             ],
             'reason' => [
                 'sometimes',
-                'required',
+                'nullable',
                 'string',
-                'min:10',
-                'max:5000',
+                'max:255',
+                Rule::in($this->allowedReasonNames()),
             ],
         ];
     }
@@ -134,10 +159,42 @@ class UpdateApplicationRequest extends FormRequest
         return [
             'full_name.regex' => 'Full name must contain only alphabetic characters and spaces.',
             'national_id.regex' => 'National ID must be exactly 8 characters with uppercase letters and numbers only.',
+            'national_id.required' => 'National ID is required.',
+            'national_id.unique' => 'This National ID already exists. Use a different National ID.',
+            'date_of_birth.before' => 'Date of birth must be a past date.',
+            'phone_number.regex' => 'Phone number may contain only digits, spaces, plus signs, hyphens, and parentheses.',
+            'email.email' => 'Email address must be a valid email.',
+            'email.max' => 'Email address must not exceed 255 characters.',
             'district.max' => 'District must not exceed 255 characters.',
             'traditional_authority.max' => 'T/A must not exceed 255 characters.',
             'village.max' => 'Village must not exceed 255 characters.',
-            'requested_name.different' => 'Requested name must be different from current name.',
+            'requested_name.different' => 'Requested name must be different from current full name.',
+            'reason_id.integer' => 'Please select a valid reason for change.',
+            'reason_id.exists' => 'Please select a valid reason for change.',
+            'reason.in' => 'Select a valid reason for change.',
         ];
+    }
+
+    /**
+     * Get the active managed reasons plus the application's current value for compatibility.
+     */
+    protected function allowedReasonNames(): array
+    {
+        $allowed = NameChangeReason::query()
+            ->where('is_active', true)
+            ->orderBy('order')
+            ->orderBy('name')
+            ->pluck('name')
+            ->all();
+
+        $applicationId = $this->route('id');
+        if ($applicationId) {
+            $application = Application::find($applicationId);
+            if ($application?->reason) {
+                $allowed[] = $application->reason;
+            }
+        }
+
+        return array_values(array_unique($allowed));
     }
 }
