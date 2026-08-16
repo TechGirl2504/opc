@@ -40,7 +40,6 @@ class StoreUserRequest extends FormRequest
                 'required',
                 'string',
                 'min:8',
-                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/',
             ],
             'role' => [
                 'required',
@@ -99,7 +98,7 @@ class StoreUserRequest extends FormRequest
     {
         return [
             'username.regex' => 'Username must contain only alphanumeric characters and underscores.',
-            'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, and one number.',
+            'password.min' => 'Password must be at least 8 characters.',
             'role.exists' => 'Selected role does not exist.',
             'institution_id.exists' => 'Selected institution does not exist.',
         ];
