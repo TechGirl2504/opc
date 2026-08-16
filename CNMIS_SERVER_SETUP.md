@@ -1,6 +1,6 @@
 # CNMIS Server Setup
 
-Non-Docker deployment runbook for the CNMIS vetting system on the current server.
+Deployment runbook for the CNMIS vetting system on the current server.
 
 ## Server details
 
@@ -53,7 +53,6 @@ Expected repo layout:
 ~/public_html/cnmis/
 ├── backend/
 ├── frontend/
-├── docker/
 └── README.md
 ```
 
@@ -308,4 +307,3 @@ composer install --no-dev --optimize-autoloader --no-scripts
 php artisan migrate --force
 php artisan optimize:clear
 ```
-
