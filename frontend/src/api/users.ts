@@ -17,7 +17,7 @@ export interface CreateUserRequest {
   password: string
   password_confirmation: string
   institution_id: number
-  roles: string[]
+  role: string
 }
 
 export interface UpdateUserRequest {
@@ -26,7 +26,7 @@ export interface UpdateUserRequest {
   password?: string
   password_confirmation?: string
   institution_id?: number
-  roles?: string[]
+  role?: string
   is_active?: boolean
 }
 
@@ -52,4 +52,3 @@ export const usersApi = {
   deactivate: (id: number): Promise<AxiosResponse> =>
     api.post(`/users/${id}/deactivate`)
 }
-

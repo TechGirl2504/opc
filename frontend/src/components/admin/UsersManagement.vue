@@ -78,7 +78,9 @@
               v-model="form.password"
               label="Password"
               type="password"
-              :rules="editingUser ? [] : [rules.required, rules.minLength]"
+              :hint="editingUser ? 'Leave blank to keep the current password.' : 'Use at least 8 characters.'"
+              persistent-hint
+              :rules="editingUser ? [rules.passwordOptional] : [rules.required, rules.minLength]"
             ></v-text-field>
             <v-text-field
               v-if="!editingUser"
@@ -96,11 +98,9 @@
               :rules="[rules.required]"
             ></v-select>
             <v-select
-              v-model="form.roles"
+              v-model="form.role"
               :items="availableRoles"
-              label="Roles"
-              multiple
-              chips
+              label="Role"
               :rules="[rules.required]"
             ></v-select>
             <v-switch
@@ -147,7 +147,7 @@ const form = reactive<CreateUserRequest & { is_active?: boolean }>({
   password: '',
   password_confirmation: '',
   institution_id: 0,
-  roles: [],
+  role: '',
   is_active: true
 })
 
@@ -164,6 +164,8 @@ const rules = {
   required: (v: any) => !!v || 'This field is required',
   email: (v: string) => /.+@.+\..+/.test(v) || 'Email must be valid',
   minLength: (v: string) => v.length >= 8 || 'Password must be at least 8 characters',
+  passwordOptional: (v: string) =>
+    !v || v.length >= 8 || 'Password must be at least 8 characters',
   passwordMatch: (v: string) => v === form.password || 'Passwords must match'
 }
 
@@ -222,7 +224,7 @@ function openEditDialog(user: User) {
   form.username = user.username
   form.email = user.email
   form.institution_id = user.institution_id || 0
-  form.roles = user.roles || []
+  form.role = user.roles?.[0] || ''
   form.is_active = user.is_active
   form.password = ''
   form.password_confirmation = ''
@@ -235,11 +237,15 @@ function resetForm() {
   form.password = ''
   form.password_confirmation = ''
   form.institution_id = 0
-  form.roles = []
+  form.role = ''
   form.is_active = true
 }
 
 async function handleSubmit() {
+  if (!editingUser.value) {
+    form.password_confirmation = form.password
+  }
+
   const { valid } = await formRef.value?.validate()
   if (!valid) return
 
@@ -250,7 +256,7 @@ async function handleSubmit() {
         username: form.username,
         email: form.email,
         institution_id: form.institution_id,
-        roles: form.roles,
+        role: form.role,
         is_active: form.is_active
       }
       if (form.password) {
@@ -264,7 +270,15 @@ async function handleSubmit() {
         await loadUsers()
       }
     } else {
-      const response = await usersApi.create(form as CreateUserRequest)
+      const createData: CreateUserRequest = {
+        username: form.username,
+        email: form.email,
+        password: form.password,
+        password_confirmation: form.password,
+        institution_id: form.institution_id,
+        role: form.role
+      }
+      const response = await usersApi.create(createData)
       if (response.data.success) {
         toast.success('User created successfully')
         dialog.value = false
@@ -314,4 +328,3 @@ onMounted(async () => {
   ])
 })
 </script>
-
