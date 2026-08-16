@@ -72,7 +72,7 @@
               v-model="form.email"
               label="Email"
               type="email"
-              :rules="[rules.required, rules.email]"
+              :rules="editingUser ? [rules.emailOptional] : [rules.required, rules.email]"
             ></v-text-field>
             <v-text-field
               v-model="form.password"
@@ -163,10 +163,30 @@ const headers = [
 const rules = {
   required: (v: any) => !!v || 'This field is required',
   email: (v: string) => /.+@.+\..+/.test(v) || 'Email must be valid',
+  emailOptional: (v: string) => !v || /.+@.+\..+/.test(v) || 'Email must be valid',
   minLength: (v: string) => v.length >= 8 || 'Password must be at least 8 characters',
   passwordOptional: (v: string) =>
     !v || v.length >= 8 || 'Password must be at least 8 characters',
   passwordMatch: (v: string) => v === form.password || 'Passwords must match'
+}
+
+function getPrimaryRole(user: User): string {
+  if (Array.isArray(user.roles) && user.roles.length > 0) {
+    const firstRole = user.roles[0] as unknown
+    if (typeof firstRole === 'string') {
+      return firstRole
+    }
+
+    if (firstRole && typeof firstRole === 'object' && 'name' in firstRole) {
+      return String((firstRole as { name?: string }).name || '')
+    }
+  }
+
+  if (typeof user.role === 'string') {
+    return user.role
+  }
+
+  return ''
 }
 
 async function loadUsers() {
@@ -224,7 +244,7 @@ function openEditDialog(user: User) {
   form.username = user.username
   form.email = user.email
   form.institution_id = user.institution_id || 0
-  form.role = user.roles?.[0] || ''
+  form.role = getPrimaryRole(user)
   form.is_active = user.is_active
   form.password = ''
   form.password_confirmation = ''
@@ -254,10 +274,16 @@ async function handleSubmit() {
     if (editingUser.value) {
       const updateData: UpdateUserRequest = {
         username: form.username,
-        email: form.email,
-        institution_id: form.institution_id,
-        role: form.role,
         is_active: form.is_active
+      }
+      if (form.email) {
+        updateData.email = form.email
+      }
+      if (form.institution_id > 0) {
+        updateData.institution_id = form.institution_id
+      }
+      if (form.role) {
+        updateData.role = form.role
       }
       if (form.password) {
         updateData.password = form.password

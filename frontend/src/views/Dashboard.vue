@@ -817,7 +817,7 @@ const dashboardProfile = computed<DashboardProfile>(() => {
             ]
           }
         ],
-        defaultWorkspaceView: 'handoff_to_admin',
+        defaultWorkspaceView: 'all',
         workflowSubtitle: 'Monitor the complete application flow across every stage.',
         actionsTitle: 'Admin Actions',
         actionsSubtitle: 'Jump to the modules used most often by administrators.',
