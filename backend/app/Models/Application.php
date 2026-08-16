@@ -19,11 +19,14 @@ class Application extends Model
         'application_number',
         'full_name',
         'national_id',
+        'date_of_birth',
+        'phone_number',
+        'email',
         'district',
         'traditional_authority',
         'village',
-        'current_name',
         'requested_name',
+        'name_change_reason_id',
         'reason',
         'status_id',
         'created_by',
@@ -42,6 +45,7 @@ class Application extends Model
 
     protected $casts = [
         'submitted_at' => 'datetime',
+        'date_of_birth' => 'date',
         'police_vetting_completed_at' => 'datetime',
         'nis_vetting_completed_at' => 'datetime',
         'decided_at' => 'datetime',
@@ -119,6 +123,11 @@ class Application extends Model
     public function status()
     {
         return $this->belongsTo(ApplicationStatus::class, 'status_id');
+    }
+
+    public function nameChangeReason()
+    {
+        return $this->belongsTo(NameChangeReason::class, 'name_change_reason_id');
     }
 
     public function policeVetting()

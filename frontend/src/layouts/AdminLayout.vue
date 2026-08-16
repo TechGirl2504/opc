@@ -27,15 +27,9 @@
       <v-list density="compact" nav>
         <v-list-item
           prepend-icon="mdi-view-dashboard"
-          title="Dashboard"
+          title="Application Dashboard"
           value="dashboard"
           :to="{ name: 'Dashboard' }"
-        />
-        <v-list-item
-          prepend-icon="mdi-file-document-multiple"
-          title="Applications"
-          value="applications"
-          :to="{ name: 'Applications' }"
         />
         <v-list-item
           v-if="authStore.hasPermission('create applications')"
@@ -91,7 +85,7 @@
         @click="toggleDrawer"
       />
 
-      <v-toolbar-title class="gov-app-bar__title">CNMIS - Admin</v-toolbar-title>
+      <v-toolbar-title class="gov-app-bar__title">CNMIS - Application Dashboard</v-toolbar-title>
 
       <v-spacer />
 

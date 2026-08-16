@@ -26,14 +26,15 @@ class WorkflowService
 
         // Define valid transitions
         $validTransitions = [
-            'pending' => ['returned_to_data_entry', 'police_vetting'],
-            'returned_to_data_entry' => ['pending'],
+            'draft' => ['handoff_to_admin'],
+            'handoff_to_admin' => ['returned_to_data_entry', 'police_vetting', 'pending_approval'],
+            'returned_to_data_entry' => ['draft', 'handoff_to_admin'],
             'police_vetting' => ['police_completed'],
             'police_completed' => ['opc_review'],
-            'opc_review' => ['nis_vetting', 'police_vetting', 'pending_approval'], // Allow going back to vetting when sent back, or forward to approval
+            'opc_review' => ['nis_vetting', 'police_vetting', 'pending_approval'],
             'nis_vetting' => ['nis_completed'],
-            'nis_completed' => ['opc_review'], // NIS completion goes to OPC review (same as police)
-            'pending_approval' => ['approved', 'denied', 'opc_review'], // Allow sending back to admin (opc_review)
+            'nis_completed' => ['opc_review'],
+            'pending_approval' => ['approved', 'denied', 'opc_review'],
             'approved' => ['archived'],
             'denied' => ['archived'],
         ];
@@ -106,14 +107,15 @@ class WorkflowService
         }
 
         $validTransitions = [
-            'pending' => ['returned_to_data_entry', 'police_vetting'],
-            'returned_to_data_entry' => ['pending'],
+            'draft' => ['handoff_to_admin'],
+            'handoff_to_admin' => ['returned_to_data_entry', 'police_vetting', 'pending_approval'],
+            'returned_to_data_entry' => ['draft', 'handoff_to_admin'],
             'police_vetting' => ['police_completed'],
             'police_completed' => ['opc_review'],
-            'opc_review' => ['nis_vetting', 'police_vetting', 'pending_approval'], // Allow going back to vetting when sent back, or forward to approval
+            'opc_review' => ['nis_vetting', 'police_vetting', 'pending_approval'],
             'nis_vetting' => ['nis_completed'],
-            'nis_completed' => ['opc_review'], // NIS completion goes to OPC review (same as police)
-            'pending_approval' => ['approved', 'denied', 'opc_review'], // Allow sending back to admin (opc_review)
+            'nis_completed' => ['opc_review'],
+            'pending_approval' => ['approved', 'denied', 'opc_review'],
             'approved' => ['archived'],
             'denied' => ['archived'],
         ];

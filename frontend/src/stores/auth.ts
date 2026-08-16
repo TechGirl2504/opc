@@ -113,7 +113,7 @@ export const useAuthStore = defineStore('auth', () => {
   // but page/action visibility should be permission-driven.
   const canViewAllApplications = computed(() => {
     // Broader application visibility is reserved for administrators and approvers.
-    return isAdmin.value || hasAnyRole(['opc_approver'])
+    return isAdmin.value || hasAnyRole(['opc_approver', 'opc_data_entry'])
   })
 
   const canEditApplications = computed(() => hasAnyPermission(['create applications', 'edit applications']))

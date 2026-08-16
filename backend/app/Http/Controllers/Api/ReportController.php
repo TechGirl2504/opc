@@ -58,8 +58,8 @@ class ReportController extends Controller
             }
 
             $total = $query->count();
-            $pending = (clone $query)->whereHas('status', function($q) {
-                $q->where('code', 'pending');
+            $handoffToAdmin = (clone $query)->whereHas('status', function($q) {
+                $q->where('code', 'handoff_to_admin');
             })->count();
             $approved = (clone $query)->whereHas('status', function($q) {
                 $q->where('code', 'approved');
@@ -76,8 +76,13 @@ class ReportController extends Controller
                 ? (clone $query)->where('status_id', $opcReviewStatus->id)->count()
                 : 0;
 
-            $policeVettingTotal = $policeVettingStatus
-                ? (clone $query)->where('status_id', $policeVettingStatus->id)->count()
+            $policeVettingActive = $policeVettingStatus
+                ? (clone $query)
+                    ->where('status_id', $policeVettingStatus->id)
+                    ->whereDoesntHave('policeVetting.status', function ($q) {
+                        $q->where('code', 'sent_back');
+                    })
+                    ->count()
                 : 0;
             $policeVettingReturned = $policeVettingStatus
                 ? (clone $query)
@@ -87,10 +92,20 @@ class ReportController extends Controller
                     })
                     ->count()
                 : 0;
-            $policeVettingActive = max(0, $policeVettingTotal - $policeVettingReturned);
+            $policeVettingCompleted = (clone $query)
+                ->whereHas('policeVetting.status', function ($q) {
+                    $q->where('code', 'completed');
+                })
+                ->count();
+            $policeVettingTotal = $policeVettingActive + $policeVettingReturned + $policeVettingCompleted;
 
-            $nisVettingTotal = $nisVettingStatus
-                ? (clone $query)->where('status_id', $nisVettingStatus->id)->count()
+            $nisVettingActive = $nisVettingStatus
+                ? (clone $query)
+                    ->where('status_id', $nisVettingStatus->id)
+                    ->whereDoesntHave('nisVetting.status', function ($q) {
+                        $q->where('code', 'sent_back');
+                    })
+                    ->count()
                 : 0;
             $nisVettingReturned = $nisVettingStatus
                 ? (clone $query)
@@ -100,7 +115,12 @@ class ReportController extends Controller
                     })
                     ->count()
                 : 0;
-            $nisVettingActive = max(0, $nisVettingTotal - $nisVettingReturned);
+            $nisVettingCompleted = (clone $query)
+                ->whereHas('nisVetting.status', function ($q) {
+                    $q->where('code', 'completed');
+                })
+                ->count();
+            $nisVettingTotal = $nisVettingActive + $nisVettingReturned + $nisVettingCompleted;
 
             // Get status breakdown with same role-based filtering
             $statusBreakdownQuery = Application::select('application_statuses.name', 'application_statuses.code', DB::raw('count(*) as count'))
@@ -137,32 +157,38 @@ class ReportController extends Controller
                 'data' => [
                     'summary' => [
                         'total' => $total,
-                        'pending' => $pending,
+                        'handoff_to_admin' => $handoffToAdmin,
                         'approved' => $approved,
                         'denied' => $denied,
                         'returned_to_admin' => $returnedToAdmin,
                         'returned_to_police' => $policeVettingReturned,
                         'returned_to_nis' => $nisVettingReturned,
+                        'police_vetting_completed' => $policeVettingCompleted,
                         'police_vetting_total' => $policeVettingTotal,
                         'police_vetting_active' => $policeVettingActive,
+                        'nis_vetting_completed' => $nisVettingCompleted,
                         'nis_vetting_total' => $nisVettingTotal,
                         'nis_vetting_active' => $nisVettingActive,
                     ],
                     // Also provide flat structure for frontend compatibility
                     'total_applications' => $total,
-                    'pending_applications' => $pending,
+                    'handoff_to_admin_applications' => $handoffToAdmin,
                     'approved_applications' => $approved,
                     'denied_applications' => $denied,
                     'returned_to_admin_applications' => $returnedToAdmin,
                     'returned_to_police_applications' => $policeVettingReturned,
                     'returned_to_nis_applications' => $nisVettingReturned,
+                    'police_vetting_completed_applications' => $policeVettingCompleted,
                     'police_vetting_active_applications' => $policeVettingActive,
+                    'nis_vetting_completed_applications' => $nisVettingCompleted,
                     'nis_vetting_active_applications' => $nisVettingActive,
                     'workflow_counts' => [
                         'returned_to_admin' => $returnedToAdmin,
                         'returned_to_police' => $policeVettingReturned,
                         'returned_to_nis' => $nisVettingReturned,
+                        'police_vetting_completed' => $policeVettingCompleted,
                         'police_vetting_active' => $policeVettingActive,
+                        'nis_vetting_completed' => $nisVettingCompleted,
                         'nis_vetting_active' => $nisVettingActive,
                     ],
                     'status_breakdown' => $statusBreakdown,
@@ -193,6 +219,7 @@ class ReportController extends Controller
         try {
             $user = $request->user();
             $filters = [
+                'search' => $request->get('search'),
                 'status_id' => $request->get('status_id'),
                 'status' => $request->get('status'),
                 'created_by' => $request->get('created_by'),
@@ -250,6 +277,26 @@ class ReportController extends Controller
                 });
             }
 
+            if (!empty(trim((string) $filters['search']))) {
+                $search = trim((string) $filters['search']);
+                $like = "%{$search}%";
+                $query->where(function ($q) use ($like) {
+                    $q->where('application_number', 'like', $like)
+                        ->orWhere('full_name', 'like', $like)
+                        ->orWhere('national_id', 'like', $like)
+                        ->orWhere('phone_number', 'like', $like)
+                        ->orWhere('district', 'like', $like)
+                        ->orWhere('traditional_authority', 'like', $like)
+                        ->orWhere('village', 'like', $like)
+                        ->orWhere('requested_name', 'like', $like)
+                        ->orWhere('reason', 'like', $like)
+                        ->orWhereHas('status', function ($statusQuery) use ($like) {
+                            $statusQuery->where('name', 'like', $like)
+                                ->orWhere('code', 'like', $like);
+                        });
+                });
+            }
+
             $applications = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
             return response()->json([
@@ -287,11 +334,12 @@ class ReportController extends Controller
     {
         try {
             $user = $request->user();
+            $search = trim((string) $request->get('search', ''));
             $dateFrom = $request->get('date_from');
             $dateTo = $request->get('date_to');
             $perPage = min($request->get('per_page', 50), 200);
 
-            $query = VettingRecord::with(['vettingType', 'status', 'application', 'conductedBy']);
+            $query = VettingRecord::with(['vettingType', 'status', 'application', 'conductedBy', 'recommendation']);
 
             // Permission-based scoping
             if (!$user->hasPermissionTo('view all applications')) {
@@ -309,6 +357,36 @@ class ReportController extends Controller
             }
             if ($dateTo) {
                 $query->whereDate('vetting_records.created_at', '<=', $dateTo);
+            }
+
+            if ($search !== '') {
+                $like = "%{$search}%";
+                $query->where(function ($q) use ($like) {
+                    $q->whereHas('application', function ($applicationQuery) use ($like) {
+                        $applicationQuery->where('application_number', 'like', $like)
+                            ->orWhere('full_name', 'like', $like)
+                            ->orWhere('national_id', 'like', $like)
+                            ->orWhere('requested_name', 'like', $like)
+                            ->orWhere('district', 'like', $like)
+                            ->orWhere('traditional_authority', 'like', $like)
+                            ->orWhere('village', 'like', $like);
+                    })
+                    ->orWhereHas('vettingType', function ($vettingTypeQuery) use ($like) {
+                        $vettingTypeQuery->where('name', 'like', $like)
+                            ->orWhere('code', 'like', $like);
+                    })
+                    ->orWhereHas('status', function ($statusQuery) use ($like) {
+                        $statusQuery->where('name', 'like', $like)
+                            ->orWhere('code', 'like', $like);
+                    })
+                    ->orWhereHas('conductedBy', function ($userQuery) use ($like) {
+                        $userQuery->where('username', 'like', $like)
+                            ->orWhere('email', 'like', $like);
+                    })
+                    ->orWhere('remarks', 'like', $like)
+                    ->orWhere('findings', 'like', $like)
+                    ->orWhere('return_reason', 'like', $like);
+                });
             }
 
             // Statistics
@@ -391,6 +469,7 @@ class ReportController extends Controller
                 'action' => $request->get('action'),
                 'model_type' => $request->get('model_type'),
                 'model_id' => $request->get('model_id'),
+                'search' => $request->get('search'),
                 'date_from' => $request->get('date_from'),
                 'date_to' => $request->get('date_to'),
                 'order_by' => $request->get('order_by', 'created_at'),
@@ -436,7 +515,7 @@ class ReportController extends Controller
         try {
             $type = $request->get('type', 'applications'); // applications, vetting, audit
             $format = $request->get('format', 'csv'); // csv, pdf
-            $filters = $request->only(['status', 'date_from', 'date_to', 'institution_id']);
+            $filters = $request->only(['status', 'status_id', 'search', 'date_from', 'date_to', 'institution_id']);
 
             // For now, return data that can be exported
             // In production, you would generate actual CSV/PDF files
@@ -445,11 +524,32 @@ class ReportController extends Controller
             switch ($type) {
                 case 'applications':
                     $query = Application::with(['status', 'createdBy']);
-                    if (isset($filters['status'])) {
+                    if (isset($filters['status_id']) && $filters['status_id']) {
+                        $query->where('status_id', $filters['status_id']);
+                    } elseif (isset($filters['status']) && $filters['status']) {
                         $status = \App\Models\ApplicationStatus::where('code', $filters['status'])->first();
                         if ($status) {
                             $query->where('status_id', $status->id);
                         }
+                    }
+                    if (!empty(trim((string) ($filters['search'] ?? '')))) {
+                        $search = trim((string) $filters['search']);
+                        $like = "%{$search}%";
+                        $query->where(function ($q) use ($like) {
+                            $q->where('application_number', 'like', $like)
+                                ->orWhere('full_name', 'like', $like)
+                                ->orWhere('national_id', 'like', $like)
+                                ->orWhere('phone_number', 'like', $like)
+                                ->orWhere('district', 'like', $like)
+                                ->orWhere('traditional_authority', 'like', $like)
+                                ->orWhere('village', 'like', $like)
+                                ->orWhere('requested_name', 'like', $like)
+                                ->orWhere('reason', 'like', $like)
+                                ->orWhereHas('status', function ($statusQuery) use ($like) {
+                                    $statusQuery->where('name', 'like', $like)
+                                        ->orWhere('code', 'like', $like);
+                                });
+                        });
                     }
                     if (isset($filters['date_from'])) {
                         $query->whereDate('created_at', '>=', $filters['date_from']);
@@ -462,6 +562,36 @@ class ReportController extends Controller
 
                 case 'vetting':
                     $query = VettingRecord::with(['vettingType', 'status', 'application']);
+                    if (!empty(trim((string) ($filters['search'] ?? '')))) {
+                        $search = trim((string) $filters['search']);
+                        $like = "%{$search}%";
+                        $query->where(function ($q) use ($like) {
+                            $q->whereHas('application', function ($applicationQuery) use ($like) {
+                                $applicationQuery->where('application_number', 'like', $like)
+                                    ->orWhere('full_name', 'like', $like)
+                                    ->orWhere('national_id', 'like', $like)
+                                    ->orWhere('requested_name', 'like', $like)
+                                    ->orWhere('district', 'like', $like)
+                                    ->orWhere('traditional_authority', 'like', $like)
+                                    ->orWhere('village', 'like', $like);
+                            })
+                            ->orWhereHas('vettingType', function ($vettingTypeQuery) use ($like) {
+                                $vettingTypeQuery->where('name', 'like', $like)
+                                    ->orWhere('code', 'like', $like);
+                            })
+                            ->orWhereHas('status', function ($statusQuery) use ($like) {
+                                $statusQuery->where('name', 'like', $like)
+                                    ->orWhere('code', 'like', $like);
+                            })
+                            ->orWhereHas('conductedBy', function ($userQuery) use ($like) {
+                                $userQuery->where('username', 'like', $like)
+                                    ->orWhere('email', 'like', $like);
+                            })
+                            ->orWhere('remarks', 'like', $like)
+                            ->orWhere('findings', 'like', $like)
+                            ->orWhere('return_reason', 'like', $like);
+                        });
+                    }
                     if (isset($filters['date_from'])) {
                         $query->whereDate('created_at', '>=', $filters['date_from']);
                     }
@@ -473,6 +603,7 @@ class ReportController extends Controller
 
                 case 'audit':
                     $auditFilters = [
+                        'search' => $filters['search'] ?? null,
                         'date_from' => $filters['date_from'] ?? null,
                         'date_to' => $filters['date_to'] ?? null,
                     ];

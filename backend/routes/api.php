@@ -13,6 +13,8 @@ use App\Http\Controllers\Api\Admin\InstitutionController;
 use App\Http\Controllers\Api\Admin\ApplicationStatusController;
 use App\Http\Controllers\Api\Admin\VettingTypeController;
 use App\Http\Controllers\Api\Admin\DocumentTypeController;
+use App\Http\Controllers\Api\Admin\NameChangeReasonController;
+use App\Http\Controllers\Api\Admin\RejectReasonController;
 use App\Http\Controllers\Api\Admin\RoleController;
 use Illuminate\Support\Facades\Route;
 
@@ -39,6 +41,7 @@ Route::prefix('v1')->group(function () {
         Route::put('/applications/{id}', [ApplicationController::class, 'update'])->middleware('auth:sanctum');
         Route::delete('/applications/{id}', [ApplicationController::class, 'destroy'])->middleware('permission:delete applications');
         Route::post('/applications/{id}/send-back-to-data-entry', [ApplicationController::class, 'sendBackToDataEntry'])->middleware('permission:manage application statuses');
+        Route::post('/applications/{id}/forward-to-admin', [ApplicationController::class, 'forwardToAdmin'])->middleware('permission:create applications');
         Route::post('/applications/{id}/assign-police', [ApplicationController::class, 'assignPolice'])->middleware('permission:assign applications');
         Route::post('/applications/{id}/assign-nis', [ApplicationController::class, 'assignNis'])->middleware('permission:assign applications');
         Route::post('/applications/{id}/forward-to-approval', [ApplicationController::class, 'forwardToApproval'])->middleware('permission:approve applications');
@@ -109,6 +112,14 @@ Route::prefix('v1')->group(function () {
         // Admin Configuration Management Routes (Admin only)
         // Document Types - GET accessible to all authenticated users (needed for uploads)
         Route::get('/admin/document-types', [DocumentTypeController::class, 'index']);
+
+        // Name Change Reasons - GET accessible to all authenticated users (needed for applications)
+        Route::get('/name-change-reasons', [NameChangeReasonController::class, 'active']);
+        Route::get('/admin/name-change-reasons', [NameChangeReasonController::class, 'index']);
+
+        // Reject Reasons - GET accessible to all authenticated users (needed for approver decisions)
+        Route::get('/reject-reasons', [RejectReasonController::class, 'active']);
+        Route::get('/admin/reject-reasons', [RejectReasonController::class, 'index']);
         
         // Decision Values - GET accessible to all authenticated users (needed for vetting recommendations)
         Route::get('/admin/decision-values', [\App\Http\Controllers\Api\Admin\DecisionValueController::class, 'index']);
@@ -119,6 +130,12 @@ Route::prefix('v1')->group(function () {
 
             // Application Statuses
             Route::apiResource('application-statuses', ApplicationStatusController::class)->middleware('permission:manage application statuses');
+
+            // Name Change Reasons
+            Route::apiResource('name-change-reasons', NameChangeReasonController::class)->middleware('permission:manage name change reasons');
+
+            // Reject Reasons
+            Route::apiResource('reject-reasons', RejectReasonController::class)->middleware('permission:manage reject reasons');
 
             // Vetting Types
             Route::apiResource('vetting-types', VettingTypeController::class)->middleware('permission:manage vetting types');

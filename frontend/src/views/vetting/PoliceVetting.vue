@@ -23,7 +23,7 @@
                 <div class="text-body-1 font-weight-bold">{{ application.application_number }}</div>
               </v-col>
               <v-col cols="12" sm="6">
-                <div class="text-caption text-grey">Applicant Name</div>
+                <div class="text-caption text-grey">Current Full Name</div>
                 <div class="text-body-1">{{ application.full_name }}</div>
               </v-col>
               <v-col cols="12" sm="6">
@@ -31,7 +31,7 @@
                 <div class="text-body-1">{{ application.national_id }}</div>
               </v-col>
               <v-col cols="12" sm="6">
-                <div class="text-caption text-grey">Requested Name</div>
+                <div class="text-caption text-grey">Requested Full Name</div>
                 <div class="text-body-1 font-weight-bold">{{ application.requested_name }}</div>
               </v-col>
             </v-row>
@@ -54,41 +54,33 @@
                     variant="outlined"
                   ></v-text-field>
                 </v-col>
-                <v-col cols="12" md="6">
-                  <v-select
-                    v-model="form.recommendation_id"
-                    :items="recommendations"
-                    item-title="name"
-                    item-value="id"
-                    label="Recommendation"
-                    :rules="[rules.required]"
-                    :disabled="!canEditVetting"
-                    variant="outlined"
-                  ></v-select>
-                </v-col>
                 <v-col cols="12">
-                  <v-textarea
-                    v-model="form.findings"
-                    label="Findings"
-                    rows="5"
-                    :disabled="!canEditVetting"
-                    hint="Enter detailed findings from the vetting process"
-                    persistent-hint
-                    variant="outlined"
-                  ></v-textarea>
+                  <v-card variant="outlined" class="pa-4">
+                    <div class="text-subtitle-1 mb-3">Recommendation</div>
+                    <v-radio-group
+                      v-model="form.recommendation_id"
+                      :rules="[rules.required]"
+                      :disabled="!canEditVetting"
+                      @update:model-value="handleRecommendationChange"
+                    >
+                      <div class="d-flex flex-column gap-2">
+                        <v-radio
+                          v-for="recommendation in recommendations"
+                          :key="recommendation.id"
+                          :label="recommendation.name"
+                          :value="recommendation.id"
+                        />
+                      </div>
+                    </v-radio-group>
+                  </v-card>
                 </v-col>
-                <v-col cols="12">
-                  <v-textarea
-                    v-model="form.remarks"
-                    label="Remarks"
-                    rows="3"
-                    :disabled="!canEditVetting"
-                    hint="Additional remarks or notes"
-                    persistent-hint
-                    variant="outlined"
-                  ></v-textarea>
+                <v-col cols="12" v-if="selectedRecommendation?.code === 'reject' && form.return_reason">
+                  <v-alert color="primary" variant="tonal" border="start" class="mb-4">
+                    <div class="text-subtitle-2 mb-1">Saved Rejection Reason</div>
+                    <div>{{ form.return_reason }}</div>
+                  </v-alert>
                 </v-col>
-                <v-col cols="12">
+                <v-col cols="12" v-if="showReportUploadSection">
                   <v-card variant="outlined">
                     <v-card-title class="text-subtitle-1">Vetting Report Documents</v-card-title>
                     <v-card-text>
@@ -102,7 +94,7 @@
                           type="file"
                           multiple
                           accept=".pdf,.jpg,.jpeg,.png"
-                          :disabled="loading"
+                          :disabled="loading || uploadingDocuments"
                           class="d-none"
                           @change="handleFileInputChange"
                         />
@@ -110,7 +102,7 @@
                           color="primary"
                           variant="outlined"
                           prepend-icon="mdi-paperclip"
-                          :disabled="loading"
+                          :disabled="loading || uploadingDocuments"
                           @click="triggerFileInput"
                         >
                           Select Files
@@ -118,6 +110,17 @@
                         <span v-if="validFiles.length > 0" class="ml-2 text-caption">
                           {{ validFiles.length }} files selected
                         </span>
+                        <v-btn
+                          class="ml-2"
+                          color="primary"
+                          variant="flat"
+                          prepend-icon="mdi-upload"
+                          :loading="uploadingDocuments"
+                          :disabled="loading || uploadingDocuments || validFiles.length === 0"
+                          @click="uploadReportDocuments"
+                        >
+                          Upload Documents
+                        </v-btn>
                       </div>
 
                       <v-alert
@@ -131,7 +134,6 @@
                         </ul>
                       </v-alert>
 
-                      <!-- Existing Documents -->
                       <v-list v-if="existingDocuments.length > 0" class="mt-4">
                         <v-list-subheader>Existing Vetting Report Documents</v-list-subheader>
                         <v-list-item
@@ -164,7 +166,6 @@
                         </v-list-item>
                       </v-list>
 
-                      <!-- New Files -->
                       <v-list v-if="validFiles.length > 0" class="mt-4">
                         <v-list-subheader>New Files to Upload ({{ validFiles.length }})</v-list-subheader>
                         <v-list-item
@@ -226,7 +227,7 @@
                     <v-btn
                       color="success"
                       :loading="loading"
-                      :disabled="loading || savingDraft || !canEditVetting"
+                      :disabled="loading || savingDraft || !canEditVetting || !canCompleteVetting"
                       @click="handleComplete"
                     >
                       {{ existingVetting?.status?.code === 'completed' ? 'Update & Complete' : 'Mark as Complete' }}
@@ -277,6 +278,28 @@
         </v-card-text>
       </v-card>
     </v-dialog>
+
+    <v-dialog v-model="showRejectDialog" max-width="720">
+      <v-card>
+        <v-card-title class="text-h6">Rejection Reason</v-card-title>
+        <v-card-text>
+          <v-textarea
+            v-model="rejectReasonDraft"
+            label="Reason for rejection"
+            rows="4"
+            variant="outlined"
+            placeholder="Explain why this vetting should be rejected"
+            :rules="[rules.required]"
+            persistent-hint
+            hint="This will be saved with the vetting record."
+          />
+        </v-card-text>
+        <v-card-actions class="justify-end">
+          <v-btn variant="text" @click="cancelRejectReason">Cancel</v-btn>
+          <v-btn color="primary" @click="confirmRejectReason">Save Reason</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -303,10 +326,13 @@ const formRef = ref<HTMLFormElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const loading = ref(false)
 const savingDraft = ref(false)
+const uploadingDocuments = ref(false)
 const error = ref('')
 const application = ref<Application | null>(null)
 const existingVetting = ref<VettingRecord | null>(null)
 const recommendations = ref<DecisionValue[]>([])
+const showRejectDialog = ref(false)
+const rejectReasonDraft = ref('')
 
 // File handling
 const validFiles = ref<File[]>([])
@@ -322,9 +348,8 @@ const previewLoading = ref(false)
 const previewDocumentId = ref<number | null>(null)
 
 const form = reactive<SubmitVettingRequest & { vetting_date?: string }>({
-  remarks: '',
-  findings: '',
   recommendation_id: undefined,
+  return_reason: '',
   vetting_date: new Date().toISOString().split('T')[0],
   document: undefined
 })
@@ -372,6 +397,96 @@ const canEditVetting = computed(() => {
   return statusCode !== 'completed'
 })
 
+const selectedRecommendation = computed(() => {
+  return recommendations.value.find((item) => item.id === form.recommendation_id) || null
+})
+
+const showReportUploadSection = computed(() => selectedRecommendation.value?.code === 'approve')
+const canManageSupportingDocuments = computed(() => true)
+const hasUploadedAttachment = computed(() => existingDocuments.value.length > 0)
+const canCompleteVetting = computed(() => {
+  if (!canEditVetting.value || !selectedRecommendation.value) {
+    return false
+  }
+
+  if (selectedRecommendation.value.code === 'approve') {
+    return canManageSupportingDocuments.value ? hasUploadedAttachment.value : true
+  }
+
+  if (selectedRecommendation.value.code === 'reject') {
+    return !!form.return_reason?.trim()
+  }
+
+  return false
+})
+
+async function removeUploadedReportDocuments() {
+  if (existingDocuments.value.length === 0) return
+
+  try {
+    await Promise.all(existingDocuments.value.map((doc) => documentsApi.delete(doc.id)))
+  } catch (err) {
+    console.error('Error removing existing vetting report documents:', err)
+    throw err
+  }
+
+  existingDocuments.value = []
+  validFiles.value = []
+  fileErrors.value = []
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
+
+async function handleRecommendationChange(recommendationId: number | null) {
+  const recommendation = recommendations.value.find((item) => item.id === recommendationId)
+
+  if (recommendation?.code === 'reject') {
+    if (existingDocuments.value.length > 0) {
+      try {
+        await removeUploadedReportDocuments()
+        toast.success('Uploaded vetting report documents removed')
+      } catch (err) {
+        toast.error('Failed to remove uploaded vetting report documents')
+        return
+      }
+    }
+
+    rejectReasonDraft.value = form.return_reason || ''
+    showRejectDialog.value = true
+    return
+  }
+
+  if (recommendation?.code === 'approve') {
+    showRejectDialog.value = false
+    rejectReasonDraft.value = ''
+    form.return_reason = ''
+    return
+  }
+
+  showRejectDialog.value = false
+  rejectReasonDraft.value = ''
+  form.return_reason = ''
+}
+
+function confirmRejectReason() {
+  const reason = rejectReasonDraft.value.trim()
+  if (!reason) {
+    toast.error('Please provide a rejection reason')
+    return
+  }
+
+  form.return_reason = reason
+  showRejectDialog.value = false
+}
+
+function cancelRejectReason() {
+  showRejectDialog.value = false
+  rejectReasonDraft.value = ''
+  form.return_reason = ''
+  form.recommendation_id = undefined
+}
+
 async function loadExistingVetting() {
   try {
     const response = await vettingApi.getPoliceVetting(applicationId)
@@ -387,9 +502,8 @@ async function loadExistingVetting() {
       }
 
       // Pre-fill form with existing data
-      form.remarks = vetting.remarks || ''
-      form.findings = vetting.findings || ''
       form.recommendation_id = vetting.recommendation?.id
+      form.return_reason = vetting.return_reason || ''
       if (vetting.vetting_date) {
         form.vetting_date = new Date(vetting.vetting_date).toISOString().split('T')[0]
       }
@@ -488,6 +602,57 @@ async function loadRecommendations() {
       { id: 4, name: 'Approve', code: 'approve' } as DecisionValue,
       { id: 5, name: 'Reject', code: 'reject' } as DecisionValue
     ]
+  }
+}
+
+async function resolveReportDocumentTypeId(): Promise<number | null> {
+  try {
+    const response = await adminApi.getDocumentTypes()
+    if (response.data.success) {
+      const reportType = response.data.data.find((dt: any) => dt.code === 'police_vetting_report')
+      return reportType?.id ?? null
+    }
+  } catch (err) {
+    console.error('Error resolving police report document type:', err)
+  }
+  return null
+}
+
+async function uploadReportDocuments() {
+  if (validFiles.value.length === 0) {
+    toast.error('Please select at least one document to upload')
+    return
+  }
+
+  uploadingDocuments.value = true
+
+  try {
+    const documentTypeId = await resolveReportDocumentTypeId()
+    if (!documentTypeId) {
+      toast.error('Unable to resolve the police vetting report document type')
+      return
+    }
+
+    for (const file of validFiles.value) {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('document_type_id', String(documentTypeId))
+      formData.append('description', 'Police vetting report document')
+      await documentsApi.upload(applicationId, formData)
+    }
+
+    validFiles.value = []
+    fileErrors.value = []
+    fileInputRef.value && (fileInputRef.value.value = '')
+    toast.success('Vetting report documents uploaded successfully')
+    await loadExistingDocuments()
+  } catch (err: any) {
+    const errorMessage = err.response?.data?.error?.message ||
+      err.response?.data?.message ||
+      'Failed to upload vetting report documents'
+    toast.error(errorMessage)
+  } finally {
+    uploadingDocuments.value = false
   }
 }
 
@@ -626,34 +791,14 @@ async function handleSaveDraft() {
 
   try {
     const submitData: SubmitVettingRequest = {
-      remarks: form.remarks,
-      findings: form.findings,
       recommendation_id: form.recommendation_id,
-      vetting_date: form.vetting_date,
-      document: validFiles.value.length > 0 ? validFiles.value[0] : undefined
+      return_reason: form.return_reason,
+      vetting_date: form.vetting_date
     }
 
     const response = await vettingApi.savePoliceVettingDraft(applicationId, submitData)
 
     if (response.data.success) {
-      // Upload additional documents if any
-      if (validFiles.value.length > 1) {
-        const documentType = await adminApi.getDocumentTypes()
-        const policeReportType = documentType.data.data.find((dt: any) => dt.code === 'police_vetting_report')
-
-        if (policeReportType) {
-          for (let i = 1; i < validFiles.value.length; i++) {
-            const formData = new FormData()
-            const file = validFiles.value[i]
-            if (!file) continue
-            formData.append('file', file)
-            formData.append('document_type_id', policeReportType.id.toString())
-            formData.append('description', 'Police vetting report document')
-            await documentsApi.upload(applicationId, formData)
-          }
-        }
-      }
-
       toast.success('Vetting saved as draft successfully')
       // Reload to get updated status
       await loadExistingVetting()
@@ -673,39 +818,31 @@ async function handleComplete() {
   const { valid } = await formRef.value?.validate()
   if (!valid) return
 
+  const returnReason = (form.return_reason || '').trim()
+
+  if (selectedRecommendation.value?.code === 'reject' && !returnReason) {
+    toast.error('Please save a rejection reason before completing')
+    return
+  }
+
+  if (selectedRecommendation.value?.code === 'approve' && !hasUploadedAttachment.value) {
+    toast.error('Please upload vetting report documents before completing')
+    return
+  }
+
   loading.value = true
   error.value = ''
 
   try {
     const submitData: SubmitVettingRequest = {
-      remarks: form.remarks,
-      findings: form.findings,
       recommendation_id: form.recommendation_id,
-      vetting_date: form.vetting_date,
-      document: validFiles.value.length > 0 ? validFiles.value[0] : undefined
+      return_reason: returnReason || undefined,
+      vetting_date: form.vetting_date
     }
 
     const response = await vettingApi.completePoliceVetting(applicationId, submitData)
 
     if (response.data.success) {
-      // Upload additional documents if any
-      if (validFiles.value.length > 1) {
-        const documentType = await adminApi.getDocumentTypes()
-        const policeReportType = documentType.data.data.find((dt: any) => dt.code === 'police_vetting_report')
-
-        if (policeReportType) {
-          for (let i = 1; i < validFiles.value.length; i++) {
-            const formData = new FormData()
-            const file = validFiles.value[i]
-            if (!file) continue
-            formData.append('file', file)
-            formData.append('document_type_id', policeReportType.id.toString())
-            formData.append('description', 'Police vetting report document')
-            await documentsApi.upload(applicationId, formData)
-          }
-        }
-      }
-
       toast.success('Vetting completed successfully')
       router.push({ name: 'ApplicationDetail', params: { id: applicationId } })
     }
@@ -742,5 +879,17 @@ onUnmounted(() => {
 <style scoped>
 .gap-2 {
   gap: 8px;
+}
+
+.recommendation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px 20px;
+}
+
+.recommendation-grid__item {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
 }
 </style>

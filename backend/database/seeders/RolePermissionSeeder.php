@@ -55,6 +55,8 @@ class RolePermissionSeeder extends Seeder
             // Configuration management
             'manage institutions',
             'manage application statuses',
+            'manage name change reasons',
+            'manage reject reasons',
             'manage vetting types',
             'manage document types',
 
@@ -89,6 +91,7 @@ class RolePermissionSeeder extends Seeder
         $opcDataEntryPerms = [
             'create applications',
             'view applications',
+            'view all applications',
             'edit applications',
             'upload documents',
             'view documents',

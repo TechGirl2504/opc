@@ -44,8 +44,8 @@ class SendBackToDataEntryRequest extends FormRequest
                 return;
             }
 
-            if ($application->status?->code !== 'pending') {
-                $validator->errors()->add('application', 'Application must be in pending status.');
+            if (!in_array($application->status?->code, ['handoff_to_admin'], true)) {
+                $validator->errors()->add('application', 'Application must be in handoff to admin status.');
             }
 
             if (

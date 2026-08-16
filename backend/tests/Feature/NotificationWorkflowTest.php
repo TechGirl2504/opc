@@ -27,6 +27,7 @@ class NotificationWorkflowTest extends TestCase
         $this->seed([
             \Database\Seeders\InstitutionSeeder::class,
             \Database\Seeders\ApplicationStatusSeeder::class,
+            \Database\Seeders\NameChangeReasonSeeder::class,
             \Database\Seeders\VettingTypeSeeder::class,
             \Database\Seeders\VettingStatusSeeder::class,
             \Database\Seeders\RolePermissionSeeder::class,
@@ -61,9 +62,8 @@ class NotificationWorkflowTest extends TestCase
             'district' => 'Rumphi',
             'traditional_authority' => 'Mwamulowe',
             'village' => 'Luwuchi',
-            'current_name' => 'John Smith',
             'requested_name' => 'John Doe',
-            'reason' => 'Name change due to marriage.',
+            'reason' => 'To match with bank details',
         ], $this->dataEntry);
 
         $this->assertNotification($this->admin, 'application_received', 'Application Received', $application);
@@ -101,9 +101,8 @@ class NotificationWorkflowTest extends TestCase
             'district' => 'Mzimba',
             'traditional_authority' => 'Khosolo',
             'village' => 'Boma',
-            'current_name' => 'Mary Jones',
             'requested_name' => 'Mary Jane',
-            'reason' => 'Correction needed.',
+            'reason' => 'To match with clan name',
         ], $this->dataEntry);
 
         $returnedApplication = $applicationService->sendBackToDataEntry($returnedApplication, 'Missing district details', $this->admin);
@@ -114,7 +113,7 @@ class NotificationWorkflowTest extends TestCase
             'district' => 'Mzimba',
             'traditional_authority' => 'Khosolo',
             'village' => 'Boma',
-            'reason' => 'Correction completed.',
+            'reason' => 'To match with clan name',
         ], $this->dataEntry);
 
         $this->assertNotification($this->admin, 'application_received', 'Application Received', $returnedApplication);
@@ -132,9 +131,8 @@ class NotificationWorkflowTest extends TestCase
             'district' => 'Rumphi',
             'traditional_authority' => 'Mwamulowe',
             'village' => 'Luwuchi',
-            'current_name' => 'John Smith',
             'requested_name' => 'John Doe',
-            'reason' => 'Workflow link test.',
+            'reason' => 'To match with religious beliefs',
         ], $this->dataEntry);
 
         $response = $this->actingAs($this->admin, 'sanctum')

@@ -21,6 +21,7 @@ class ApplicationControllerTest extends TestCase
         $this->seed([
             \Database\Seeders\InstitutionSeeder::class,
             \Database\Seeders\ApplicationStatusSeeder::class,
+            \Database\Seeders\NameChangeReasonSeeder::class,
             \Database\Seeders\RolePermissionSeeder::class,
         ]);
         $this->user = User::factory()->create();

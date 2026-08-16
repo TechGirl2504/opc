@@ -19,12 +19,25 @@ class ApplicationResource extends JsonResource
             'application_number' => $this->application_number,
             'full_name' => $this->full_name,
             'national_id' => $this->national_id,
+            'date_of_birth' => $this->date_of_birth?->format('Y-m-d'),
+            'phone_number' => $this->phone_number,
+            'email' => $this->email,
             'district' => $this->district,
             'traditional_authority' => $this->traditional_authority,
             'village' => $this->village,
-            'current_name' => $this->current_name,
             'requested_name' => $this->requested_name,
-            'reason' => $this->reason,
+            'name_change_reason_id' => $this->name_change_reason_id,
+            'name_change_reason' => $this->whenLoaded('nameChangeReason', function () {
+                return [
+                    'id' => $this->nameChangeReason->id,
+                    'name' => $this->nameChangeReason->name,
+                    'code' => $this->nameChangeReason->code,
+                    'description' => $this->nameChangeReason->description,
+                    'order' => $this->nameChangeReason->order,
+                    'is_active' => $this->nameChangeReason->is_active,
+                ];
+            }),
+            'reason' => $this->nameChangeReason?->name ?? $this->reason,
             'status' => [
                 'id' => $this->status->id ?? null,
                 'name' => $this->status->name ?? null,

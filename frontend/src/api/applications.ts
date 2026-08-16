@@ -8,6 +8,7 @@ export interface Application {
   national_id: string
   date_of_birth?: string | null
   phone_number?: string | null
+  email?: string | null
   district: string
   traditional_authority: string
   village: string
@@ -66,16 +67,26 @@ export interface ApplicationListParams {
   search?: string
   status_id?: number
   status?: string
+  review_state?: 'open' | 'returned'
   created_by?: number
   assigned_police_officer_id?: number
   assigned_nis_officer_id?: number
   assigned_opc_approver_id?: number
   vetting_type?: 'police' | 'nis'
-  vetting_state?: 'active' | 'returned'
+  vetting_state?: 'active' | 'returned' | 'completed'
   date_from?: string
   date_to?: string
   order_by?: string
   order_dir?: 'asc' | 'desc'
+}
+
+export interface RejectReason {
+  id: number
+  name: string
+  code: string
+  description?: string | null
+  order?: number | null
+  is_active?: boolean
 }
 
 export interface CreateApplicationRequest {
@@ -83,6 +94,7 @@ export interface CreateApplicationRequest {
   national_id: string
   date_of_birth?: string
   phone_number?: string
+  email?: string
   district: string
   traditional_authority: string
   village: string
@@ -107,6 +119,9 @@ export const applicationsApi = {
 
   getNameChangeReasons: (): Promise<AxiosResponse> =>
     api.get('/name-change-reasons'),
+
+  getRejectReasons: (): Promise<AxiosResponse> =>
+    api.get('/reject-reasons'),
   
   create: (data: CreateApplicationRequest): Promise<AxiosResponse> =>
     api.post('/applications', data),
@@ -123,6 +138,9 @@ export const applicationsApi = {
   
   update: (id: number, data: UpdateApplicationRequest): Promise<AxiosResponse> =>
     api.put(`/applications/${id}`, data),
+
+  forwardToAdmin: (id: number): Promise<AxiosResponse> =>
+    api.post(`/applications/${id}/forward-to-admin`),
   
   delete: (id: number): Promise<AxiosResponse> =>
     api.delete(`/applications/${id}`),

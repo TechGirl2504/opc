@@ -55,6 +55,7 @@
                 disabled
               />
             </v-col>
+
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="form.full_name"
@@ -64,6 +65,19 @@
                 :disabled="isEditLocked"
                 required
                 hint="Only letters and spaces allowed"
+                persistent-hint
+              />
+            </v-col>
+
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="form.requested_name"
+                label="Requested Full Name *"
+                :rules="requestedNameRules"
+                variant="outlined"
+                :disabled="isEditLocked"
+                required
+                hint="Must be different from current full name"
                 persistent-hint
               />
             </v-col>
@@ -107,15 +121,29 @@
               />
             </v-col>
 
-            <v-col cols="12" md="4">
+            <v-col cols="12" md="6">
               <v-text-field
+                v-model="form.email"
+                label="Email Address"
+                type="email"
+                autocomplete="email"
+                variant="outlined"
+                :disabled="isEditLocked"
+                hint="Optional: applicant email address"
+                persistent-hint
+              />
+            </v-col>
+
+            <v-col cols="12" md="4">
+              <v-select
                 v-model="form.district"
                 label="District *"
                 :rules="districtRules"
+                :items="districtOptions"
                 variant="outlined"
                 :disabled="isEditLocked"
                 required
-                hint="Enter the district"
+                hint="Select the district"
                 persistent-hint
               />
             </v-col>
@@ -142,19 +170,6 @@
                 :disabled="isEditLocked"
                 required
                 hint="Enter the village"
-                persistent-hint
-              />
-            </v-col>
-
-            <v-col cols="12" md="6">
-              <v-text-field
-                v-model="form.requested_name"
-                label="Requested Full Name *"
-                :rules="requestedNameRules"
-                variant="outlined"
-                :disabled="isEditLocked"
-                required
-                hint="Must be different from current full name"
                 persistent-hint
               />
             </v-col>
@@ -239,11 +254,24 @@
                   </div>
 
                   <!-- Upload New Documents -->
-                  <div class="mb-2">
-                    <label class="text-body-2 text-medium-emphasis mb-1 d-block">
-                      {{ isEditMode ? 'Upload Additional Documents (Optional)' : 'Upload Documents (Optional)' }}
-                      <span class="text-caption ml-1">Unlimited files, 50MB each (PDF, JPG, PNG)</span>
-                    </label>
+                  <div class="upload-panel mb-2">
+                    <div class="d-flex flex-wrap align-center gap-3">
+                      <label class="upload-panel__label d-block">
+                        <span class="text-body-2 text-high-emphasis">
+                          {{ isEditMode ? 'Upload Additional Documents (Optional)' : 'Upload Documents (Optional)' }}
+                        </span>
+                        <span class="upload-panel__meta">Unlimited files, 50MB each (PDF, JPG, PNG)</span>
+                      </label>
+                      <v-chip
+                        v-if="validFiles.length > 0"
+                        class="upload-panel__count"
+                        size="small"
+                        variant="tonal"
+                      >
+                        {{ validFiles.length }} selected
+                      </v-chip>
+                    </div>
+
                     <input
                       ref="fileInputRef"
                       type="file"
@@ -253,18 +281,39 @@
                       class="d-none"
                       @change="handleFileInputChange"
                     />
-                    <v-btn
-                      color="primary"
-                      variant="outlined"
-                      prepend-icon="mdi-paperclip"
-                      :disabled="loading || uploadingDocuments"
-                      @click="triggerFileInput"
-                    >
-                      Select Files
-                    </v-btn>
-                    <span v-if="validFiles.length > 0" class="ml-2 text-caption">
-                      {{ validFiles.length }} files selected
-                    </span>
+
+                    <div class="upload-panel__actions">
+                      <v-btn
+                        color="grey-darken-2"
+                        variant="outlined"
+                        prepend-icon="mdi-paperclip"
+                        :disabled="loading || uploadingDocuments"
+                        @click="triggerFileInput"
+                      >
+                        Select Files
+                      </v-btn>
+
+                      <v-btn
+                        v-if="isEditMode && validFiles.length > 0"
+                        color="grey-darken-2"
+                        variant="tonal"
+                        prepend-icon="mdi-upload"
+                        :disabled="!selectedDocumentType || uploadingDocuments"
+                        :loading="uploadingDocuments"
+                        @click="uploadDocuments"
+                      >
+                        Upload Selected Files
+                      </v-btn>
+                    </div>
+
+                    <div class="upload-panel__hint mt-3">
+                      <span v-if="isEditMode">
+                        Select files above, then click <strong>Upload Selected Files</strong> to attach them to this application.
+                      </span>
+                      <span v-else>
+                        Select files above. They will be uploaded automatically when you click <strong>Save Draft</strong> or <strong>Save Draft &amp; Forward to Admin</strong>.
+                      </span>
+                    </div>
                   </div>
 
                   <!-- Document Type (Edit Mode Only) -->
@@ -313,19 +362,6 @@
                     </v-list-item>
                   </v-list>
 
-                  <!-- Upload Button for Edit Mode -->
-                  <v-btn
-                    v-if="isEditMode && validFiles.length > 0"
-                    color="primary"
-                    variant="tonal"
-                    prepend-icon="mdi-upload"
-                    :disabled="!selectedDocumentType || uploadingDocuments"
-                    :loading="uploadingDocuments"
-                    class="mt-4"
-                    @click="uploadDocuments"
-                  >
-                    Upload {{ validFiles.length }} File(s)
-                  </v-btn>
                 </v-card-text>
               </v-card>
             </v-col>
@@ -347,8 +383,21 @@
               color="primary"
               :loading="loading"
               :disabled="loading || isEditLocked"
+              @click="submitAction = 'save'"
             >
-              {{ isEditMode ? 'Update Application' : 'Create Application' }}
+              {{ isEditMode ? 'Update Application' : 'Save Draft' }}
+            </v-btn>
+            <v-btn
+              v-if="canForwardAfterSave"
+              class="form-actions__button"
+              type="submit"
+              color="secondary"
+              variant="tonal"
+              :loading="loading"
+              :disabled="loading || isEditLocked"
+              @click="submitAction = 'forward'"
+            >
+              {{ isEditMode ? 'Save & Forward to Admin' : 'Save Draft & Forward to Admin' }}
             </v-btn>
           </div>
         </v-form>
@@ -387,6 +436,35 @@ const documentTypes = ref<Array<{ id: number; name: string }>>([])
 const selectedDocumentType = ref<number | null>(null)
 
 const reasonOptions = ref<NameChangeReason[]>([])
+const districtOptions = [
+  'Balaka',
+  'Blantyre',
+  'Chikwawa',
+  'Chiradzulu',
+  'Chitipa',
+  'Dedza',
+  'Dowa',
+  'Karonga',
+  'Kasungu',
+  'Likoma',
+  'Lilongwe',
+  'Machinga',
+  'Mangochi',
+  'Mchinji',
+  'Mulanje',
+  'Mzimba',
+  'Neno',
+  'Nkhata Bay',
+  'Nkhotakota',
+  'Nsanje',
+  'Ntcheu',
+  'Ntchisi',
+  'Phalombe',
+  'Rumphi',
+  'Salima',
+  'Thyolo',
+  'Zomba'
+]
 
 // Preview dialog state (used by previewDocument/closePreview)
 const showPreviewDialog = ref(false)
@@ -409,17 +487,32 @@ const isEditLocked = computed(() => {
   return !canEditLoadedApplication.value
 })
 
+const canForwardAfterSave = computed(() => {
+  if (!authStore.hasAnyRole(['opc_data_entry'])) {
+    return false
+  }
+
+  if (!isEditMode.value) {
+    return true
+  }
+
+  return applicationData.value?.allowed_actions?.includes('forward_to_admin') ?? false
+})
+
+const submitAction = ref<'save' | 'forward'>('save')
+
 function getDashboardRedirectView(statusCode?: string | null): string {
   const normalizedStatus = statusCode?.toLowerCase() ?? ''
 
   if (authStore.isAdmin) {
+    if (normalizedStatus === 'handoff_to_admin') return 'handoff_to_admin'
     if (normalizedStatus === 'returned_to_admin' || normalizedStatus === 'opc_review') return 'returned_to_admin'
     if (normalizedStatus === 'returned_to_police') return 'returned_to_police'
     if (normalizedStatus === 'returned_to_nis') return 'returned_to_nis'
-    if (normalizedStatus === 'pending_approval') return 'pending_approval'
+    if (normalizedStatus === 'draft') return 'handoff_to_admin'
     if (normalizedStatus === 'approved') return 'approved'
     if (normalizedStatus === 'denied') return 'denied'
-    return 'all'
+    return 'handoff_to_admin'
   }
 
   if (authStore.hasAnyRole(['opc_approver'])) {
@@ -446,13 +539,16 @@ function getDashboardRedirectView(statusCode?: string | null): string {
   }
 
   if (authStore.hasAnyRole(['opc_data_entry'])) {
+    if (normalizedStatus === 'draft') return 'draft'
+    if (normalizedStatus === 'handoff_to_admin') return 'handoff_to_admin'
     if (normalizedStatus === 'returned_to_data_entry') return 'returned'
     if (normalizedStatus === 'police_vetting') return 'police_vetting'
     if (normalizedStatus === 'nis_vetting') return 'nis_vetting'
-    if (normalizedStatus === 'pending_approval' || normalizedStatus === 'pending') return 'pending'
     return 'all'
   }
 
+  if (normalizedStatus === 'draft') return 'draft'
+  if (normalizedStatus === 'handoff_to_admin') return 'handoff_to_admin'
   if (normalizedStatus === 'returned_to_data_entry') return 'returned'
   if (normalizedStatus === 'approved') return 'approved'
   if (normalizedStatus === 'denied') return 'denied'
@@ -471,6 +567,7 @@ const form = reactive({
   national_id: '',
   date_of_birth: '',
   phone_number: '',
+  email: '',
   district: '',
   traditional_authority: '',
   village: '',
@@ -666,6 +763,7 @@ async function loadApplication() {
       form.national_id = app.national_id || ''
       form.date_of_birth = app.date_of_birth || ''
       form.phone_number = app.phone_number || ''
+      form.email = app.email || ''
       form.district = app.district || ''
       form.traditional_authority = app.traditional_authority || ''
       form.village = app.village || ''
@@ -937,6 +1035,8 @@ async function handleSubmit() {
   loading.value = true
 
   try {
+    const shouldForwardAfterSave = submitAction.value === 'forward'
+    submitAction.value = 'save'
     let response
     if (isEditMode.value) {
       // Check if application is assigned - cannot edit if assigned, unless this is the admin approver-return review flow.
@@ -955,10 +1055,21 @@ async function handleSubmit() {
 
       response = await applicationsApi.update(applicationId.value!, form)
       if (response.data.success) {
-        toast.success('Application updated successfully!')
+        let redirectStatus = response.data.data?.status?.code || applicationData.value?.status?.code
+
+        if (shouldForwardAfterSave) {
+          const forwardResponse = await applicationsApi.forwardToAdmin(applicationId.value!)
+          if (forwardResponse.data.success) {
+            redirectStatus = forwardResponse.data.data?.status?.code || 'handoff_to_admin'
+            toast.success('Application updated and forwarded to admin successfully!')
+          }
+        } else {
+          toast.success('Application updated successfully!')
+        }
+
         // Refresh documents before navigating
         await fetchDocuments()
-        redirectToDashboard(response.data.data?.status?.code || applicationData.value?.status?.code)
+        redirectToDashboard(redirectStatus)
       }
     } else {
       // Create FormData for file upload
@@ -967,6 +1078,7 @@ async function handleSubmit() {
       if (form.national_id) formData.append('national_id', form.national_id)
       if (form.date_of_birth) formData.append('date_of_birth', form.date_of_birth)
       if (form.phone_number) formData.append('phone_number', form.phone_number)
+      if (form.email) formData.append('email', form.email)
       formData.append('district', form.district)
       formData.append('traditional_authority', form.traditional_authority)
       formData.append('village', form.village)
@@ -984,12 +1096,23 @@ async function handleSubmit() {
 
       response = await applicationsApi.createWithFiles(formData)
       if (response.data.success) {
-        toast.success('Application created successfully!')
+        let redirectStatus = response.data.data?.status?.code
+
+        if (shouldForwardAfterSave) {
+          const forwardResponse = await applicationsApi.forwardToAdmin(response.data.data.id)
+          if (forwardResponse.data.success) {
+            redirectStatus = forwardResponse.data.data?.status?.code || 'handoff_to_admin'
+            toast.success('Application saved and forwarded to admin successfully!')
+          }
+        } else {
+          toast.success('Application created successfully!')
+        }
+
         // Reset form and files
         selectedFiles.value = []
         validFiles.value = []
         fileErrors.value = []
-        redirectToDashboard(response.data.data?.status?.code)
+        redirectToDashboard(redirectStatus)
       }
     }
   } catch (error: any) {
@@ -1078,6 +1201,46 @@ onMounted(async () => {
 .reason-choice__label {
   line-height: 1.5;
   padding-top: 0;
+}
+
+.upload-panel {
+  padding: 4px 0 2px;
+}
+
+.upload-panel__label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.upload-panel__meta {
+  font-size: 0.75rem;
+  color: rgba(0, 0, 0, 0.58);
+}
+
+.upload-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.upload-panel__count {
+  flex-shrink: 0;
+  background: rgba(96, 110, 137, 0.12);
+  color: rgba(33, 37, 41, 0.82);
+  border: 1px solid rgba(96, 110, 137, 0.2);
+}
+
+.upload-panel__hint {
+  border-radius: 10px;
+  background: rgba(96, 110, 137, 0.08);
+  color: rgba(33, 37, 41, 0.8);
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  line-height: 1.45;
 }
 
 .reason-choice :deep(.v-selection-control) {

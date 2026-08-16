@@ -16,8 +16,8 @@ class ApplicationService
     protected NotificationService $notificationService;
 
     private const FINAL_STATUSES = ['approved', 'denied', 'archived'];
-    private const CREATOR_EDITABLE_STATUSES = ['pending', 'returned_to_data_entry'];
-    private const ADMIN_EDITABLE_STATUSES = ['pending'];
+    private const CREATOR_EDITABLE_STATUSES = ['draft', 'returned_to_data_entry'];
+    private const ADMIN_EDITABLE_STATUSES = ['handoff_to_admin'];
 
     public function __construct(AuditService $auditService, NotificationService $notificationService)
     {
@@ -34,7 +34,7 @@ class ApplicationService
             return false;
         }
 
-        if ($user->hasPermissionTo('view all applications')) {
+        if ($user->hasPermissionTo('view all applications') || $this->isApproverUser($user)) {
             return true;
         }
 
@@ -117,16 +117,24 @@ class ApplicationService
             $allowedActions[] = 'conduct_nis_vetting';
         }
 
-        if ($user->hasPermissionTo('send back vetting') && $this->canSendBackPoliceWorkflow($application)) {
+        if ($isAdmin && $user->hasPermissionTo('send back vetting') && $this->canSendBackPoliceWorkflow($application)) {
             $allowedActions[] = 'send_back_police_vetting';
         }
 
-        if ($user->hasPermissionTo('send back vetting') && $this->canSendBackNisWorkflow($application)) {
+        if ($isAdmin && $user->hasPermissionTo('send back vetting') && $this->canSendBackNisWorkflow($application)) {
             $allowedActions[] = 'send_back_nis_vetting';
         }
 
-        if ($user->hasPermissionTo('approve applications') && $this->canForwardToApprovalWorkflow($application)) {
+        if ($isAdmin && $user->hasPermissionTo('approve applications') && $this->canForwardToApprovalWorkflow($application)) {
             $allowedActions[] = 'forward_to_approval';
+        }
+
+        if (
+            $user->hasPermissionTo('create applications')
+            && $isCreator
+            && in_array($statusCode, ['draft', 'returned_to_data_entry'], true)
+        ) {
+            $allowedActions[] = 'forward_to_admin';
         }
 
         if ($this->isApproverUser($user) && $statusCode === 'pending_approval') {
@@ -140,7 +148,7 @@ class ApplicationService
 
         if (
             ($user->hasRole('admin') || $user->hasPermissionTo('manage application statuses'))
-            && $statusCode === 'pending'
+            && $statusCode === 'handoff_to_admin'
             && !$application->assigned_police_officer_id
             && !$application->assigned_nis_officer_id
             && !$application->assigned_opc_approver_id
@@ -203,7 +211,7 @@ class ApplicationService
             return false;
         }
 
-        if (!in_array($statusCode, ['pending'], true)) {
+        if (!in_array($statusCode, ['draft', 'handoff_to_admin'], true)) {
             return false;
         }
 
@@ -212,7 +220,7 @@ class ApplicationService
 
     private function canAssignPoliceWorkflow(Application $application, string $statusCode): bool
     {
-        if (!in_array($statusCode, ['pending', 'police_vetting'], true)) {
+        if (!in_array($statusCode, ['draft', 'handoff_to_admin', 'police_vetting'], true)) {
             if ($statusCode !== 'opc_review') {
                 return false;
             }
@@ -246,7 +254,7 @@ class ApplicationService
     private function canConductPoliceVettingWorkflow(Application $application): bool
     {
         $statusCode = $application->status->code ?? null;
-        if (in_array($statusCode, ['pending', 'police_vetting'], true)) {
+        if (in_array($statusCode, ['draft', 'handoff_to_admin', 'police_vetting'], true)) {
             return true;
         }
 
@@ -298,7 +306,7 @@ class ApplicationService
         ]);
 
         // Permission-based scoping if user is provided
-        if ($user && !$user->hasPermissionTo('view all applications')) {
+        if ($user && !$user->hasPermissionTo('view all applications') && !$this->isApproverUser($user)) {
             $query->where(function ($q) use ($user) {
                 $q->where('created_by', $user->id)
                     ->orWhere('assigned_police_officer_id', $user->id)
@@ -352,6 +360,19 @@ class ApplicationService
             }
         }
 
+        if (!empty($filters['review_state'])) {
+            $opcReviewStatus = ApplicationStatus::where('code', 'opc_review')->first();
+            if ($opcReviewStatus) {
+                $query->where('status_id', $opcReviewStatus->id);
+
+                if ($filters['review_state'] === 'returned') {
+                    $query->whereNotNull('approver_send_back_reason');
+                } elseif ($filters['review_state'] === 'open') {
+                    $query->whereNull('approver_send_back_reason');
+                }
+            }
+        }
+
         // Filter by created_by
         if (isset($filters['created_by']) && $filters['created_by']) {
             $query->where('created_by', $filters['created_by']);
@@ -375,11 +396,16 @@ class ApplicationService
             $sentBackCondition = function ($q) {
                 $q->where('code', 'sent_back');
             };
+            $completedCondition = function ($q) {
+                $q->where('code', 'completed');
+            };
 
             if ($filters['vetting_state'] === 'returned') {
                 $query->whereHas("{$vettingRelation}.status", $sentBackCondition);
             } elseif ($filters['vetting_state'] === 'active') {
                 $query->whereDoesntHave("{$vettingRelation}.status", $sentBackCondition);
+            } elseif ($filters['vetting_state'] === 'completed') {
+                $query->whereHas("{$vettingRelation}.status", $completedCondition);
             }
         }
 
@@ -407,14 +433,15 @@ class ApplicationService
     {
         DB::beginTransaction();
         try {
-            // Get pending status
-            $pendingStatus = ApplicationStatus::where('code', 'pending')->firstOrFail();
+            // New applications start as drafts until they are explicitly handed off to admin.
+            $draftStatus = ApplicationStatus::where('code', 'draft')->firstOrFail();
             $reason = $this->resolveNameChangeReason($data);
 
             $application = Application::create([
                 'full_name' => $data['full_name'],
                 'national_id' => $data['national_id'] ?? null,
                 'date_of_birth' => $data['date_of_birth'] ?? null,
+                'email' => $data['email'] ?? null,
                 'phone_number' => $data['phone_number'] ?? null,
                 'district' => $data['district'],
                 'traditional_authority' => $data['traditional_authority'],
@@ -422,16 +449,13 @@ class ApplicationService
                 'requested_name' => $data['requested_name'],
                 'name_change_reason_id' => $reason?->id,
                 'reason' => $reason?->name ?? ($data['reason'] ?? null),
-                'status_id' => $pendingStatus->id,
+                'status_id' => $draftStatus->id,
                 'created_by' => $user->id,
-                'submitted_at' => now(),
+                'submitted_at' => null,
             ]);
 
             // Log audit
             $this->auditService->logCreate($user, Application::class, $application->id, $application->toArray());
-
-            // Notify admins that a new application has been received
-            $this->notificationService->notifyApplicationReceivedByAdmins($application, $user);
 
             DB::commit();
             return $application->load(['status', 'createdBy', 'nameChangeReason']);
@@ -450,14 +474,13 @@ class ApplicationService
         DB::beginTransaction();
         try {
             $oldValues = $application->toArray();
-            $returnedStatus = ApplicationStatus::where('code', 'returned_to_data_entry')->first();
-            $pendingStatus = ApplicationStatus::where('code', 'pending')->first();
             $reason = $this->resolveNameChangeReason($data);
 
             $application->update([
                 'full_name' => $data['full_name'] ?? $application->full_name,
                 'national_id' => $data['national_id'] ?? $application->national_id,
                 'date_of_birth' => $data['date_of_birth'] ?? $application->date_of_birth,
+                'email' => $data['email'] ?? $application->email,
                 'phone_number' => $data['phone_number'] ?? $application->phone_number,
                 'district' => $data['district'] ?? $application->district,
                 'traditional_authority' => $data['traditional_authority'] ?? $application->traditional_authority,
@@ -467,22 +490,6 @@ class ApplicationService
                 'reason' => $reason?->name ?? ($data['reason'] ?? $application->reason),
             ]);
 
-            if (
-                $returnedStatus
-                && (int) $application->status_id === (int) $returnedStatus->id
-                && $user->hasPermissionTo('create applications')
-            ) {
-                $application->update([
-                    'status_id' => $pendingStatus?->id ?? $application->status_id,
-                    'data_entry_return_reason' => null,
-                    'data_entry_return_at' => null,
-                    'submitted_at' => now(),
-                ]);
-
-                // Notify admins that a corrected application has been resubmitted
-                $this->notificationService->notifyApplicationReceivedByAdmins($application, $user);
-            }
-
             // Log audit
             $this->auditService->logUpdate($user, Application::class, $application->id, $oldValues, $application->toArray());
 
@@ -491,6 +498,54 @@ class ApplicationService
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Failed to update application: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Forward a draft or returned application to admin review.
+     */
+    public function forwardToAdmin(Application $application, User $user): Application
+    {
+        DB::beginTransaction();
+        try {
+            $application->loadMissing('status');
+
+            $handoffStatus = ApplicationStatus::where('code', 'handoff_to_admin')->firstOrFail();
+            $allowedCurrentStatuses = ['draft', 'returned_to_data_entry', 'handoff_to_admin'];
+
+            if (!in_array($application->status?->code, $allowedCurrentStatuses, true)) {
+                throw new \Exception('Application cannot be handed off to admin from the current status');
+            }
+
+            if ($application->created_by !== null && (int) $application->created_by !== (int) $user->id && !$user->hasRole('admin')) {
+                throw new \Exception('Only the creator or an admin can hand off this application');
+            }
+
+            $oldValues = $application->toArray();
+
+            $application->update([
+                'status_id' => $handoffStatus->id,
+                'data_entry_return_reason' => null,
+                'data_entry_return_at' => null,
+                'submitted_at' => now(),
+            ]);
+
+            $this->auditService->logStatusChange(
+                $user,
+                Application::class,
+                $application->id,
+                $oldValues['status_id'] ?? null,
+                $application->status_id
+            );
+
+            $this->notificationService->notifyApplicationReceivedByAdmins($application, $user);
+
+            DB::commit();
+            return $application->fresh(['status', 'createdBy', 'nameChangeReason']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to forward application to admin: ' . $e->getMessage());
             throw $e;
         }
     }
@@ -793,14 +848,14 @@ class ApplicationService
     }
 
     /**
-     * Send application back to data entry from pending review.
+     * Send application back to data entry from admin review.
      */
     public function sendBackToDataEntry(Application $application, string $reason, User $user): Application
     {
         DB::beginTransaction();
         try {
-            if ($application->status->code !== 'pending') {
-                throw new \Exception('Application must be in pending status to send back to data entry');
+            if ($application->status->code !== 'handoff_to_admin') {
+                throw new \Exception('Application must be in handoff to admin status to send back to data entry');
             }
 
             if ($application->assigned_police_officer_id || $application->assigned_nis_officer_id || $application->assigned_opc_approver_id) {

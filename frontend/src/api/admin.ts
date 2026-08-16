@@ -44,6 +44,28 @@ export interface DocumentType {
   updated_at: string
 }
 
+export interface NameChangeReason {
+  id: number
+  name: string
+  code: string
+  description?: string
+  order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface RejectReason {
+  id: number
+  name: string
+  code: string
+  description?: string
+  order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Role {
   id: number
   name: string
@@ -122,6 +144,32 @@ export const adminApi = {
   deleteDocumentType: (id: number): Promise<AxiosResponse> =>
     api.delete(`/admin/document-types/${id}`),
 
+  // Name Change Reasons
+  getNameChangeReasons: (): Promise<AxiosResponse> =>
+    api.get('/admin/name-change-reasons'),
+
+  createNameChangeReason: (data: Partial<NameChangeReason>): Promise<AxiosResponse> =>
+    api.post('/admin/name-change-reasons', data),
+
+  updateNameChangeReason: (id: number, data: Partial<NameChangeReason>): Promise<AxiosResponse> =>
+    api.put(`/admin/name-change-reasons/${id}`, data),
+
+  deleteNameChangeReason: (id: number): Promise<AxiosResponse> =>
+    api.delete(`/admin/name-change-reasons/${id}`),
+
+  // Reject Reasons
+  getRejectReasons: (): Promise<AxiosResponse> =>
+    api.get('/admin/reject-reasons'),
+
+  createRejectReason: (data: Partial<RejectReason>): Promise<AxiosResponse> =>
+    api.post('/admin/reject-reasons', data),
+
+  updateRejectReason: (id: number, data: Partial<RejectReason>): Promise<AxiosResponse> =>
+    api.put(`/admin/reject-reasons/${id}`, data),
+
+  deleteRejectReason: (id: number): Promise<AxiosResponse> =>
+    api.delete(`/admin/reject-reasons/${id}`),
+
   // Roles
   getRoles: (): Promise<AxiosResponse> =>
     api.get('/admin/roles'),
@@ -145,4 +193,3 @@ export const adminApi = {
   getDecisionValues: (): Promise<AxiosResponse> =>
     api.get('/admin/decision-values')
 }
-

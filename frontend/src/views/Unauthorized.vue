@@ -9,7 +9,7 @@
             <v-card-text class="text-center">
               <p>You don't have permission to access this page.</p>
               <v-btn color="primary" @click="$router.push({ name: 'Dashboard' })" class="mt-4">
-                Go to Dashboard
+                Go to Application Dashboard
               </v-btn>
             </v-card-text>
           </div>

@@ -285,7 +285,7 @@ class NotificationService
     }
 
     /**
-     * Notify the application creator when a pending record is sent back for correction.
+     * Notify the application creator when a record is sent back for correction.
      */
     public function notifyApplicationSentBackToDataEntry(Application $application, User $reviewer, string $reason): void
     {
