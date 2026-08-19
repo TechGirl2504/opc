@@ -137,13 +137,13 @@ export const applicationsApi = {
     api.get(`/applications/${id}`),
   
   update: (id: number, data: UpdateApplicationRequest): Promise<AxiosResponse> =>
-    api.put(`/applications/${id}`, data),
+    api.post(`/applications/${id}/update`, data),
 
   forwardToAdmin: (id: number): Promise<AxiosResponse> =>
     api.post(`/applications/${id}/forward-to-admin`),
   
   delete: (id: number): Promise<AxiosResponse> =>
-    api.delete(`/applications/${id}`),
+    api.post(`/applications/${id}/delete`),
   
   assignPolice: (id: number, data: AssignPoliceRequest): Promise<AxiosResponse> =>
     api.post(`/applications/${id}/assign-police`, data),

@@ -100,10 +100,10 @@ export const adminApi = {
     api.post('/admin/institutions', data),
   
   updateInstitution: (id: number, data: Partial<Institution>): Promise<AxiosResponse> =>
-    api.put(`/admin/institutions/${id}`, data),
+    api.post(`/admin/institutions/${id}/update`, data),
   
   deleteInstitution: (id: number): Promise<AxiosResponse> =>
-    api.delete(`/admin/institutions/${id}`),
+    api.post(`/admin/institutions/${id}/delete`),
 
   // Application Statuses
   getApplicationStatuses: (): Promise<AxiosResponse> =>
@@ -113,10 +113,10 @@ export const adminApi = {
     api.post('/admin/application-statuses', data),
   
   updateApplicationStatus: (id: number, data: Partial<ApplicationStatus>): Promise<AxiosResponse> =>
-    api.put(`/admin/application-statuses/${id}`, data),
+    api.post(`/admin/application-statuses/${id}/update`, data),
   
   deleteApplicationStatus: (id: number): Promise<AxiosResponse> =>
-    api.delete(`/admin/application-statuses/${id}`),
+    api.post(`/admin/application-statuses/${id}/delete`),
 
   // Vetting Types
   getVettingTypes: (): Promise<AxiosResponse> =>
@@ -126,10 +126,10 @@ export const adminApi = {
     api.post('/admin/vetting-types', data),
   
   updateVettingType: (id: number, data: Partial<VettingType>): Promise<AxiosResponse> =>
-    api.put(`/admin/vetting-types/${id}`, data),
+    api.post(`/admin/vetting-types/${id}/update`, data),
   
   deleteVettingType: (id: number): Promise<AxiosResponse> =>
-    api.delete(`/admin/vetting-types/${id}`),
+    api.post(`/admin/vetting-types/${id}/delete`),
 
   // Document Types
   getDocumentTypes: (): Promise<AxiosResponse> =>
@@ -139,10 +139,10 @@ export const adminApi = {
     api.post('/admin/document-types', data),
   
   updateDocumentType: (id: number, data: Partial<DocumentType>): Promise<AxiosResponse> =>
-    api.put(`/admin/document-types/${id}`, data),
+    api.post(`/admin/document-types/${id}/update`, data),
   
   deleteDocumentType: (id: number): Promise<AxiosResponse> =>
-    api.delete(`/admin/document-types/${id}`),
+    api.post(`/admin/document-types/${id}/delete`),
 
   // Name Change Reasons
   getNameChangeReasons: (): Promise<AxiosResponse> =>
@@ -152,10 +152,10 @@ export const adminApi = {
     api.post('/admin/name-change-reasons', data),
 
   updateNameChangeReason: (id: number, data: Partial<NameChangeReason>): Promise<AxiosResponse> =>
-    api.put(`/admin/name-change-reasons/${id}`, data),
+    api.post(`/admin/name-change-reasons/${id}/update`, data),
 
   deleteNameChangeReason: (id: number): Promise<AxiosResponse> =>
-    api.delete(`/admin/name-change-reasons/${id}`),
+    api.post(`/admin/name-change-reasons/${id}/delete`),
 
   // Reject Reasons
   getRejectReasons: (): Promise<AxiosResponse> =>
@@ -165,10 +165,10 @@ export const adminApi = {
     api.post('/admin/reject-reasons', data),
 
   updateRejectReason: (id: number, data: Partial<RejectReason>): Promise<AxiosResponse> =>
-    api.put(`/admin/reject-reasons/${id}`, data),
+    api.post(`/admin/reject-reasons/${id}/update`, data),
 
   deleteRejectReason: (id: number): Promise<AxiosResponse> =>
-    api.delete(`/admin/reject-reasons/${id}`),
+    api.post(`/admin/reject-reasons/${id}/delete`),
 
   // Roles
   getRoles: (): Promise<AxiosResponse> =>
@@ -178,10 +178,10 @@ export const adminApi = {
     api.post('/admin/roles', data),
   
   updateRole: (id: number, data: Partial<Role>): Promise<AxiosResponse> =>
-    api.put(`/admin/roles/${id}`, data),
+    api.post(`/admin/roles/${id}/update`, data),
   
   deleteRole: (id: number): Promise<AxiosResponse> =>
-    api.delete(`/admin/roles/${id}`),
+    api.post(`/admin/roles/${id}/delete`),
   
   getRolePermissions: (id: number): Promise<AxiosResponse> =>
     api.get(`/admin/roles/${id}/permissions`),

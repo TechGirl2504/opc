@@ -164,4 +164,36 @@ class UserControllerTest extends TestCase
         $response->assertOk();
         $this->assertTrue($user->fresh()->hasAllRoles(['opc_data_entry', 'opc_approver']));
     }
+
+    public function test_admin_can_update_user_through_post_fallback(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+        $user = User::factory()->create(['institution_id' => Institution::firstOrFail()->id]);
+        $user->assignRole('opc_data_entry');
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/v1/users/{$user->id}/update", [
+                'username' => 'post_updated_user',
+                'roles' => ['opc_data_entry', 'opc_approver'],
+            ])
+            ->assertOk();
+
+        $user->refresh();
+        $this->assertSame('post_updated_user', $user->username);
+        $this->assertTrue($user->hasAllRoles(['opc_data_entry', 'opc_approver']));
+    }
+
+    public function test_admin_can_delete_user_through_post_fallback(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+        $user = User::factory()->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/v1/users/{$user->id}/delete")
+            ->assertOk();
+
+        $this->assertSoftDeleted('users', ['id' => $user->id]);
+    }
 }

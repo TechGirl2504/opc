@@ -46,6 +46,5 @@ export const documentsApi = {
     api.get(`/documents/${id}/preview`, { responseType: 'blob' }),
   
   delete: (id: number): Promise<AxiosResponse> =>
-    api.delete(`/documents/${id}`)
+    api.post(`/documents/${id}/delete`)
 }
-
