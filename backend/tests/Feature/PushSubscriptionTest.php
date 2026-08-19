@@ -53,7 +53,7 @@ class PushSubscriptionTest extends TestCase
         ]);
 
         $deleteResponse = $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/push-subscriptions', [
+            ->postJson('/api/v1/push-subscriptions/delete', [
                 'endpoint' => $payload['endpoint'],
             ]);
 

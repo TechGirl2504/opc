@@ -69,7 +69,7 @@ export const vettingApi = {
     if (data.return_reason) formData.append('return_reason', data.return_reason)
     if (data.vetting_date) formData.append('vetting_date', data.vetting_date)
     if (data.document) formData.append('document', data.document)
-    return api.put(`/applications/${applicationId}/vetting/police`, formData, {
+    return api.post(`/applications/${applicationId}/vetting/police/update`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   },
@@ -98,7 +98,7 @@ export const vettingApi = {
     if (data.return_reason) formData.append('return_reason', data.return_reason)
     if (data.vetting_date) formData.append('vetting_date', data.vetting_date)
     if (data.document) formData.append('document', data.document)
-    return api.put(`/applications/${applicationId}/vetting/nis`, formData, {
+    return api.post(`/applications/${applicationId}/vetting/nis/update`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   },

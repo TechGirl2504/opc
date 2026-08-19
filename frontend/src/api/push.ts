@@ -36,5 +36,5 @@ export const pushApi = {
     api.post('/push-subscriptions', payload),
 
   unsubscribe: (endpoint: string): Promise<AxiosResponse> =>
-    api.delete('/push-subscriptions', { data: { endpoint } }),
+    api.post('/push-subscriptions/delete', { endpoint }),
 }

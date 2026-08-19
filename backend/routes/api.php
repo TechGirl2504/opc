@@ -41,6 +41,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/applications/{id}', [ApplicationController::class, 'show']);
         Route::put('/applications/{id}', [ApplicationController::class, 'update'])->middleware('auth:sanctum');
         Route::delete('/applications/{id}', [ApplicationController::class, 'destroy'])->middleware('permission:delete applications');
+        Route::post('/applications/{id}/update', [ApplicationController::class, 'update']);
+        Route::post('/applications/{id}/delete', [ApplicationController::class, 'destroy'])->middleware('permission:delete applications');
         Route::post('/applications/{id}/send-back-to-data-entry', [ApplicationController::class, 'sendBackToDataEntry'])->middleware('permission:manage application statuses');
         Route::post('/applications/{id}/forward-to-admin', [ApplicationController::class, 'forwardToAdmin'])->middleware('permission:create applications');
         Route::post('/applications/{id}/assign-police', [ApplicationController::class, 'assignPolice'])->middleware('permission:assign applications');
@@ -56,11 +58,13 @@ Route::prefix('v1')->group(function () {
         Route::post('/applications/{id}/vetting/police/draft', [VettingController::class, 'savePoliceVettingDraft'])->middleware('permission:conduct police vetting');
         Route::post('/applications/{id}/vetting/police/complete', [VettingController::class, 'completePoliceVetting'])->middleware('permission:conduct police vetting');
         Route::put('/applications/{id}/vetting/police', [VettingController::class, 'updatePoliceVetting'])->middleware('permission:conduct police vetting');
+        Route::post('/applications/{id}/vetting/police/update', [VettingController::class, 'updatePoliceVetting'])->middleware('permission:conduct police vetting');
         Route::get('/applications/{id}/vetting/nis', [VettingController::class, 'getNisVetting']);
         Route::post('/applications/{id}/vetting/nis', [VettingController::class, 'submitNisVetting'])->middleware('permission:conduct nis vetting'); // Keep for backward compatibility
         Route::post('/applications/{id}/vetting/nis/draft', [VettingController::class, 'saveNisVettingDraft'])->middleware('permission:conduct nis vetting');
         Route::post('/applications/{id}/vetting/nis/complete', [VettingController::class, 'completeNisVetting'])->middleware('permission:conduct nis vetting');
         Route::put('/applications/{id}/vetting/nis', [VettingController::class, 'updateNisVetting'])->middleware('permission:conduct nis vetting');
+        Route::post('/applications/{id}/vetting/nis/update', [VettingController::class, 'updateNisVetting'])->middleware('permission:conduct nis vetting');
         
         // Send back vetting (OPC only)
         Route::post('/vetting/{id}/send-back', [VettingController::class, 'sendBack'])->middleware('permission:send back vetting');
@@ -70,6 +74,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/applications/{id}/documents', [DocumentController::class, 'store'])->middleware('permission:upload documents');
         Route::get('/documents/{id}', [DocumentController::class, 'show'])->middleware('permission:view documents');
         Route::delete('/documents/{id}', [DocumentController::class, 'destroy'])->middleware('permission:delete documents');
+        Route::post('/documents/{id}/delete', [DocumentController::class, 'destroy'])->middleware('permission:delete documents');
         Route::get('/documents/{id}/download', [DocumentController::class, 'download'])->middleware('permission:download documents');
         Route::get('/documents/{id}/preview', [DocumentController::class, 'preview'])->middleware('permission:view documents');
 
@@ -87,6 +92,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/users/{id}', [UserController::class, 'show']);
             Route::put('/users/{id}', [UserController::class, 'update']);
             Route::delete('/users/{id}', [UserController::class, 'destroy']);
+            // POST fallbacks for hosts that block PUT and DELETE at Apache level.
+            Route::post('/users/{id}/update', [UserController::class, 'update']);
+            Route::post('/users/{id}/delete', [UserController::class, 'destroy']);
             Route::post('/users/{id}/activate', [UserController::class, 'activate']);
             Route::post('/users/{id}/deactivate', [UserController::class, 'deactivate']);
         });
@@ -109,6 +117,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/push-subscriptions', [PushSubscriptionController::class, 'index']);
         Route::post('/push-subscriptions', [PushSubscriptionController::class, 'store']);
         Route::delete('/push-subscriptions', [PushSubscriptionController::class, 'destroy']);
+        Route::post('/push-subscriptions/delete', [PushSubscriptionController::class, 'destroy']);
 
         // Admin Configuration Management Routes (Admin only)
         // Document Types - GET accessible to all authenticated users (needed for uploads)
@@ -128,27 +137,41 @@ Route::prefix('v1')->group(function () {
         Route::prefix('admin')->group(function () {
             // Institutions
             Route::apiResource('institutions', InstitutionController::class)->middleware('permission:manage institutions');
+            Route::post('/institutions/{id}/update', [InstitutionController::class, 'update'])->middleware('permission:manage institutions');
+            Route::post('/institutions/{id}/delete', [InstitutionController::class, 'destroy'])->middleware('permission:manage institutions');
 
             // Application Statuses
             Route::apiResource('application-statuses', ApplicationStatusController::class)->middleware('permission:manage application statuses');
+            Route::post('/application-statuses/{id}/update', [ApplicationStatusController::class, 'update'])->middleware('permission:manage application statuses');
+            Route::post('/application-statuses/{id}/delete', [ApplicationStatusController::class, 'destroy'])->middleware('permission:manage application statuses');
 
             // Name Change Reasons
             Route::apiResource('name-change-reasons', NameChangeReasonController::class)->middleware('permission:manage name change reasons');
+            Route::post('/name-change-reasons/{id}/update', [NameChangeReasonController::class, 'update'])->middleware('permission:manage name change reasons');
+            Route::post('/name-change-reasons/{id}/delete', [NameChangeReasonController::class, 'destroy'])->middleware('permission:manage name change reasons');
 
             // Reject Reasons
             Route::apiResource('reject-reasons', RejectReasonController::class)->middleware('permission:manage reject reasons');
+            Route::post('/reject-reasons/{id}/update', [RejectReasonController::class, 'update'])->middleware('permission:manage reject reasons');
+            Route::post('/reject-reasons/{id}/delete', [RejectReasonController::class, 'destroy'])->middleware('permission:manage reject reasons');
 
             // Vetting Types
             Route::apiResource('vetting-types', VettingTypeController::class)->middleware('permission:manage vetting types');
+            Route::post('/vetting-types/{id}/update', [VettingTypeController::class, 'update'])->middleware('permission:manage vetting types');
+            Route::post('/vetting-types/{id}/delete', [VettingTypeController::class, 'destroy'])->middleware('permission:manage vetting types');
 
             // Document Types - CRUD operations (admin only)
             Route::post('/document-types', [DocumentTypeController::class, 'store'])->middleware('permission:manage document types');
             Route::get('/document-types/{id}', [DocumentTypeController::class, 'show'])->middleware('permission:manage document types');
             Route::put('/document-types/{id}', [DocumentTypeController::class, 'update'])->middleware('permission:manage document types');
             Route::delete('/document-types/{id}', [DocumentTypeController::class, 'destroy'])->middleware('permission:manage document types');
+            Route::post('/document-types/{id}/update', [DocumentTypeController::class, 'update'])->middleware('permission:manage document types');
+            Route::post('/document-types/{id}/delete', [DocumentTypeController::class, 'destroy'])->middleware('permission:manage document types');
 
             // Roles & Permissions
             Route::apiResource('roles', RoleController::class)->middleware('permission:manage roles');
+            Route::post('/roles/{id}/update', [RoleController::class, 'update'])->middleware('permission:manage roles');
+            Route::post('/roles/{id}/delete', [RoleController::class, 'destroy'])->middleware('permission:manage roles');
             Route::get('/roles/{id}/permissions', [RoleController::class, 'permissions'])->middleware('permission:manage roles');
             Route::get('/permissions', [RoleController::class, 'permissions'])->middleware('permission:manage permissions');
         });

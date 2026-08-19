@@ -43,10 +43,10 @@ export const usersApi = {
     api.get(`/users/${id}`),
   
   update: (id: number, data: UpdateUserRequest): Promise<AxiosResponse> =>
-    api.put(`/users/${id}`, data),
+    api.post(`/users/${id}/update`, data),
   
   delete: (id: number): Promise<AxiosResponse> =>
-    api.delete(`/users/${id}`),
+    api.post(`/users/${id}/delete`),
   
   activate: (id: number): Promise<AxiosResponse> =>
     api.post(`/users/${id}/activate`),
