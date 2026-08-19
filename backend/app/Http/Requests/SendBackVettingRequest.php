@@ -13,7 +13,7 @@ class SendBackVettingRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        if (!($this->user()?->hasPermissionTo('send back vetting') ?? false)) {
+        if (!($this->user()?->hasActivePermission('send back vetting') ?? false)) {
             return false;
         }
 
@@ -70,4 +70,3 @@ class SendBackVettingRequest extends FormRequest
         ];
     }
 }
-

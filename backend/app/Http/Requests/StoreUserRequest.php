@@ -13,7 +13,7 @@ class StoreUserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->hasPermissionTo('manage users') ?? false;
+        return $this->user()?->hasActivePermission('manage users') ?? false;
     }
 
     /**
@@ -42,7 +42,16 @@ class StoreUserRequest extends FormRequest
                 'min:8',
             ],
             'role' => [
-                'required',
+                'nullable',
+                'string',
+                Rule::exists('roles', 'name'),
+            ],
+            'roles' => [
+                'nullable',
+                'array',
+                'min:1',
+            ],
+            'roles.*' => [
                 'string',
                 Rule::exists('roles', 'name'),
             ],
@@ -61,17 +70,29 @@ class StoreUserRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
-            $role = $this->input('role');
+            $roles = $this->input('roles', []);
+            if ($this->filled('role')) {
+                $roles[] = $this->input('role');
+            }
             $institutionId = $this->input('institution_id');
 
-            if ($role && $institutionId) {
+            if (empty($roles) || !$institutionId) {
+                if (empty($roles)) {
+                    $validator->errors()->add('roles', 'At least one role must be selected.');
+                }
+                return;
+            }
+
+            if ($institutionId) {
                 $institution = \App\Models\Institution::find($institutionId);
                 
                 // Validate role-institution compatibility
                 if ($institution) {
                     $validRoles = $this->getValidRolesForInstitution($institution->code);
-                    if (!in_array($role, $validRoles)) {
-                        $validator->errors()->add('role', "Role '{$role}' is not valid for institution '{$institution->name}'");
+                    foreach (array_unique($roles) as $role) {
+                        if (!in_array($role, $validRoles, true)) {
+                            $validator->errors()->add('roles', "Role '{$role}' is not valid for institution '{$institution->name}'");
+                        }
                     }
                 }
             }
@@ -100,6 +121,7 @@ class StoreUserRequest extends FormRequest
             'username.regex' => 'Username must contain only alphanumeric characters and underscores.',
             'password.min' => 'Password must be at least 8 characters.',
             'role.exists' => 'Selected role does not exist.',
+            'roles.*.exists' => 'One or more selected roles do not exist.',
             'institution_id.exists' => 'Selected institution does not exist.',
         ];
     }

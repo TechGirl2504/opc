@@ -55,6 +55,15 @@ class AuthController extends Controller
         // Log login
         $this->auditService->logLogin($user);
 
+        $roles = $user->roles->pluck('name')->values()->all();
+        if ($request->hasSession()) {
+            if (count($roles) === 1) {
+                $request->session()->put('active_role', $roles[0]);
+            } else {
+                $request->session()->forget('active_role');
+            }
+        }
+
         Auth::guard('web')->login($user, $request->boolean('remember'));
         if ($request->hasSession()) {
             $request->session()->regenerate();
@@ -69,8 +78,9 @@ class AuthController extends Controller
                     'username' => $user->username,
                     'email' => $user->email,
                     'role' => $user->roles->first()?->name,
-                    'roles' => $user->roles->pluck('name')->toArray(),
-                    'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
+                    'roles' => $roles,
+                    'active_role' => $request->hasSession() ? $request->session()->get('active_role') : null,
+                    'permissions' => $this->permissionsForActiveRole($user, $request),
                     'institution' => $user->institution ? [
                         'id' => $user->institution->id,
                         'name' => $user->institution->name,
@@ -91,6 +101,7 @@ class AuthController extends Controller
     public function user(Request $request)
     {
         $user = $request->user();
+        $roles = $user->roles->pluck('name')->values()->all();
         return response()->json([
             'success' => true,
             'data' => [
@@ -99,8 +110,9 @@ class AuthController extends Controller
                     'username' => $user->username,
                     'email' => $user->email,
                     'role' => $user->roles->first()?->name,
-                    'roles' => $user->roles->pluck('name')->toArray(),
-                    'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
+                    'roles' => $roles,
+                    'active_role' => $request->hasSession() ? $request->session()->get('active_role') : null,
+                    'permissions' => $this->permissionsForActiveRole($user, $request),
                     'institution' => $user->institution ? [
                         'id' => $user->institution->id,
                         'name' => $user->institution->name,
@@ -113,6 +125,72 @@ class AuthController extends Controller
                 ]
             ]
         ]);
+    }
+
+    /**
+     * Select the role used for this authenticated session.
+     */
+    public function selectActiveRole(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'role' => ['required', 'string'],
+        ]);
+
+        $user = $request->user();
+        if (!$request->hasSession()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'STATEFUL_SESSION_REQUIRED',
+                    'message' => 'Active role selection requires a stateful authenticated session.',
+                ],
+            ], 400);
+        }
+
+        if (!$user->roles()->where('name', $validated['role'])->exists()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'ROLE_NOT_ASSIGNED',
+                    'message' => 'You cannot select a role that is not assigned to your account.',
+                ],
+            ], 403);
+        }
+
+        $request->session()->put('active_role', $validated['role']);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'active_role' => $validated['role'],
+                'roles' => $user->roles->pluck('name')->values()->all(),
+                'permissions' => $user->roles()
+                    ->where('name', $validated['role'])
+                    ->first()
+                    ?->permissions
+                    ?->pluck('name')
+                    ?->values()
+                    ?->all() ?? [],
+            ],
+            'message' => 'Active role selected successfully',
+        ]);
+    }
+
+    private function permissionsForActiveRole(User $user, Request $request): array
+    {
+        $activeRole = $request->hasSession() ? $request->session()->get('active_role') : null;
+
+        if (!$activeRole) {
+            return $user->getAllPermissions()->pluck('name')->values()->all();
+        }
+
+        return $user->roles()
+            ->where('name', $activeRole)
+            ->first()
+            ?->permissions
+            ?->pluck('name')
+            ?->values()
+            ?->all() ?? [];
     }
 
     /**

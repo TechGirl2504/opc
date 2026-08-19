@@ -31,6 +31,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/select-role',
+    name: 'RoleSelection',
+    component: () => import('@/views/auth/RoleSelection.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/applications',
     name: 'Applications',
     component: () => import('@/views/applications/List.vue'),
@@ -150,6 +156,16 @@ router.beforeEach(async (to, from, next) => {
       next({ name: 'Login' })
       return
     }
+  }
+
+  if (
+    to.meta.requiresAuth &&
+    to.name !== 'RoleSelection' &&
+    (authStore.user?.roles?.length ?? 0) > 1 &&
+    !authStore.user?.active_role
+  ) {
+    next({ name: 'RoleSelection' })
+    return
   }
 
   // Redirect authenticated users away from auth pages

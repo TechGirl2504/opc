@@ -22,12 +22,12 @@ class StoreVettingRequest extends FormRequest
         }
 
         // Police vetting permission
-        if ($this->user()?->hasPermissionTo('conduct police vetting')) {
+        if ($this->user()?->hasActivePermission('conduct police vetting')) {
             return $application->assigned_police_officer_id === $this->user()->id;
         }
 
         // NIS vetting permission
-        if ($this->user()?->hasPermissionTo('conduct nis vetting')) {
+        if ($this->user()?->hasActivePermission('conduct nis vetting')) {
             return $application->assigned_nis_officer_id === $this->user()->id;
         }
 

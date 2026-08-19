@@ -95,6 +95,31 @@ class UserControllerTest extends TestCase
         $this->assertTrue($createdUser->hasRole('admin'));
     }
 
+    public function test_admin_can_create_user_with_multiple_roles(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+        $institution = Institution::firstOrFail();
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/users', [
+            'username' => 'multi_role_user',
+            'email' => 'multi.role@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'institution_id' => $institution->id,
+            'roles' => ['opc_data_entry', 'opc_approver'],
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonFragment(['name' => 'opc_data_entry'])
+            ->assertJsonFragment(['name' => 'opc_approver']);
+
+        $createdUser = User::where('username', 'multi_role_user')->firstOrFail();
+        $this->assertTrue($createdUser->hasAllRoles(['opc_data_entry', 'opc_approver']));
+        $this->assertTrue($createdUser->hasPermissionTo('create applications'));
+        $this->assertTrue($createdUser->hasPermissionTo('approve applications'));
+    }
+
     public function test_admin_can_update_user_without_changing_password(): void
     {
         $admin = User::factory()->create();
@@ -123,5 +148,20 @@ class UserControllerTest extends TestCase
         $this->assertSame($originalPassword, $user->password);
         $this->assertSame('updated_user', $user->username);
         $this->assertTrue($user->hasRole('opc_data_entry'));
+    }
+
+    public function test_admin_can_update_all_roles_assigned_to_a_user(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+        $user = User::factory()->create(['institution_id' => Institution::firstOrFail()->id]);
+        $user->assignRole('opc_data_entry');
+
+        $response = $this->actingAs($admin, 'sanctum')->putJson("/api/v1/users/{$user->id}", [
+            'roles' => ['opc_data_entry', 'opc_approver'],
+        ]);
+
+        $response->assertOk();
+        $this->assertTrue($user->fresh()->hasAllRoles(['opc_data_entry', 'opc_approver']));
     }
 }

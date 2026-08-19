@@ -13,7 +13,7 @@ class UpdateUserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->hasPermissionTo('manage users') ?? false;
+        return $this->user()?->hasActivePermission('manage users') ?? false;
     }
 
     /**
@@ -45,8 +45,16 @@ class UpdateUserRequest extends FormRequest
                 'min:8',
             ],
             'role' => [
+                'nullable',
+                'string',
+                Rule::exists('roles', 'name'),
+            ],
+            'roles' => [
                 'sometimes',
-                'required',
+                'array',
+                'min:1',
+            ],
+            'roles.*' => [
                 'string',
                 Rule::exists('roles', 'name'),
             ],
@@ -66,26 +74,33 @@ class UpdateUserRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
-            $role = $this->input('role');
+            $roles = $this->input('roles');
             $institutionId = $this->input('institution_id');
             $userId = $this->route('id');
 
-            if ($role || $institutionId) {
+            if ($roles !== null || $this->filled('role') || $institutionId) {
                 $user = User::find($userId);
                 if (!$user) {
                     return;
                 }
 
-                $finalRole = $role ?? $user->roles->first()?->name;
+                $finalRoles = $roles ?? $user->roles->pluck('name')->all();
+                if ($this->filled('role')) {
+                    $finalRoles[] = $this->input('role');
+                }
                 $finalInstitutionId = $institutionId ?? $user->institution_id;
 
-                if ($finalRole && $finalInstitutionId) {
+                if (empty($finalRoles)) {
+                    $validator->errors()->add('roles', 'At least one role must be selected.');
+                } elseif ($finalInstitutionId) {
                     $institution = \App\Models\Institution::find($finalInstitutionId);
                     
                     if ($institution) {
                         $validRoles = $this->getValidRolesForInstitution($institution->code);
-                        if (!in_array($finalRole, $validRoles)) {
-                            $validator->errors()->add('role', "Role '{$finalRole}' is not valid for institution '{$institution->name}'");
+                        foreach (array_unique($finalRoles) as $role) {
+                            if (!in_array($role, $validRoles, true)) {
+                                $validator->errors()->add('roles', "Role '{$role}' is not valid for institution '{$institution->name}'");
+                            }
                         }
                     }
                 }
@@ -115,6 +130,7 @@ class UpdateUserRequest extends FormRequest
             'username.regex' => 'Username must contain only alphanumeric characters and underscores.',
             'password.min' => 'Password must be at least 8 characters.',
             'role.exists' => 'Selected role does not exist.',
+            'roles.*.exists' => 'One or more selected roles do not exist.',
             'institution_id.exists' => 'Selected institution does not exist.',
         ];
     }

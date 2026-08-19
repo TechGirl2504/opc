@@ -136,7 +136,8 @@ class UserController extends Controller
     {
         try {
             $validated = $request->validated();
-            $roleName = $validated['role'];
+            $roleNames = $validated['roles'] ?? [$validated['role']];
+            unset($validated['roles'], $validated['role']);
 
             $user = User::create([
                 'username' => $validated['username'],
@@ -146,11 +147,7 @@ class UserController extends Controller
                 'is_active' => $validated['is_active'] ?? true,
             ]);
 
-            // Assign role
-            $role = Role::where('name', $roleName)->first();
-            if ($role) {
-                $user->assignRole($role);
-            }
+            $user->syncRoles(Role::whereIn('name', array_unique($roleNames))->get());
 
             // Log audit
             $this->auditService->logCreate($request->user(), User::class, $user->id, $user->toArray());
@@ -237,17 +234,17 @@ class UserController extends Controller
             }
 
             // Remove role from validated (handle separately)
-            $roleName = $validated['role'] ?? null;
-            unset($validated['role']);
+            $roleNames = $validated['roles'] ?? null;
+            if ($roleNames === null && isset($validated['role'])) {
+                $roleNames = [$validated['role']];
+            }
+            unset($validated['role'], $validated['roles']);
 
             $user->update($validated);
 
             // Update role if provided
-            if ($roleName) {
-                $role = Role::where('name', $roleName)->first();
-                if ($role) {
-                    $user->syncRoles([$role]);
-                }
+            if ($roleNames !== null) {
+                $user->syncRoles(Role::whereIn('name', array_unique($roleNames))->get());
             }
 
             // Log audit

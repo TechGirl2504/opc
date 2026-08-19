@@ -617,7 +617,7 @@ class ApplicationController extends Controller
                 'reason' => 'required|string|min:10|max:5000',
             ]);
 
-            if (!$request->user()?->hasRole('opc_approver')) {
+            if (!$request->user()?->hasActiveRole('opc_approver')) {
                 return $this->forbiddenApplicationResponse();
             }
 

@@ -10,8 +10,8 @@ export const useAuthStore = defineStore('auth', () => {
   let ensureUserPromise: Promise<boolean> | null = null
 
   const isAuthenticated = computed(() => !!user.value)
-  const isAdmin = computed(() => user.value?.roles?.includes('admin') ?? false)
-  const userRole = computed(() => user.value?.roles?.[0] ?? null)
+  const isAdmin = computed(() => user.value?.active_role === 'admin')
+  const userRole = computed(() => user.value?.active_role ?? null)
   const userInstitution = computed(() => user.value?.institution)
   const userPermissions = computed(() => user.value?.permissions || [])
 
@@ -84,6 +84,23 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function selectRole(role: string) {
+    const response = await authApi.selectActiveRole(role)
+    if (response.data.success && user.value) {
+      user.value = {
+        ...user.value,
+        active_role: response.data.data.active_role,
+        roles: response.data.data.roles,
+        permissions: response.data.data.permissions,
+      }
+    }
+    return response.data
+  }
+
+  function goToRoleSelection() {
+    router.push({ name: 'RoleSelection' })
+  }
+
   async function fetchUser() {
     const ok = await ensureUserLoaded()
     if (!ok) {
@@ -93,6 +110,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function hasRole(role: string): boolean {
+    if (user.value?.active_role) return user.value.active_role === role
     return user.value?.roles?.includes(role) ?? false
   }
 
@@ -145,6 +163,8 @@ export const useAuthStore = defineStore('auth', () => {
     canDeleteApplications,
     canAssignOfficers,
     login,
+    selectRole,
+    goToRoleSelection,
     logout,
     fetchUser,
     ensureUserLoaded,

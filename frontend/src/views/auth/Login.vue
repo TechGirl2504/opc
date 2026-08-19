@@ -131,10 +131,8 @@ async function handleLogin() {
 
     toast.success('Login successful!')
 
-    // Redirect based on user role
-    const role = authStore.userRole
-    if (role === 'admin') {
-      router.push({ name: 'Dashboard' })
+    if ((authStore.user?.roles?.length ?? 0) > 1 && !authStore.user?.active_role) {
+      router.push({ name: 'RoleSelection' })
     } else {
       router.push({ name: 'Dashboard' })
     }
