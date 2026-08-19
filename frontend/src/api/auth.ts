@@ -17,10 +17,14 @@ function getSanctumBaseUrl(): string {
   const apiBase = api.defaults.baseURL ?? '/api/v1'
 
   if (/^https?:\/\//i.test(apiBase)) {
-    return new URL('/sanctum/csrf-cookie', apiBase).toString()
+    const url = new URL(apiBase)
+    url.pathname = url.pathname.replace(/\/api\/v1\/?$/, '/sanctum/csrf-cookie')
+    return url.toString()
   }
 
-  return '/sanctum/csrf-cookie'
+  // Preserve a deployment prefix such as /cnmis-api when the API is served
+  // from a subdirectory rather than the domain root.
+  return apiBase.replace(/\/api\/v1\/?$/, '/sanctum/csrf-cookie')
 }
 
 const sanctumApi = axios.create({
@@ -38,6 +42,7 @@ export interface User {
   email: string
   roles: string[]
   role?: string
+  active_role?: string | null
   permissions?: string[]
   institution?: string | {
     id: number
@@ -79,6 +84,11 @@ export const authApi = {
   
   user: (): Promise<AxiosResponse<{ success: boolean; data: { user: User } }>> =>
     api.get('/auth/user'),
+
+  selectActiveRole: (role: string): Promise<AxiosResponse<{
+    success: boolean
+    data: { active_role: string; roles: string[]; permissions: string[] }
+  }>> => api.post('/auth/active-role', { role }),
   
   refresh: (): Promise<AxiosResponse> =>
     api.post('/auth/refresh'),

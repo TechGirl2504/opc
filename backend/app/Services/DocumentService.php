@@ -30,7 +30,7 @@ class DocumentService
      */
     public function assertCanAccessApplication(Application $application, User $user): void
     {
-        if ($user->hasPermissionTo('view all applications') || $user->hasRole('opc_approver')) {
+        if ($user->hasActivePermission('view all applications') || $user->hasActiveRole('opc_approver')) {
             return;
         }
 

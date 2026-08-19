@@ -35,7 +35,7 @@ class UpdateApplicationRequest extends FormRequest
         $handoffStatus = ApplicationStatus::where('code', 'handoff_to_admin')->first();
         $returnedStatus = ApplicationStatus::where('code', 'returned_to_data_entry')->first();
         $opcReviewStatus = ApplicationStatus::where('code', 'opc_review')->first();
-        $isAdminReviewAfterApproverReturn = $user->hasRole('admin')
+        $isAdminReviewAfterApproverReturn = $user->hasActiveRole('admin')
             && (int) $application->status_id === (int) ($opcReviewStatus?->id)
             && !empty($application->approver_send_back_reason);
 
@@ -50,7 +50,7 @@ class UpdateApplicationRequest extends FormRequest
 
         // Data entry can edit their own draft or handoff record.
         if (
-            $user->hasPermissionTo('create applications')
+            $user->hasActivePermission('create applications')
             && in_array($application->status_id, [$draftStatus?->id, $handoffStatus?->id, $returnedStatus?->id], true)
             && (int) $application->created_by === (int) $user->id
         ) {
@@ -60,7 +60,7 @@ class UpdateApplicationRequest extends FormRequest
         // Admin can edit an unassigned handoff application for minor corrections.
         // Admin can also edit an OPC review file after the approver has sent it back.
         if (
-            $user->hasRole('admin')
+            $user->hasActiveRole('admin')
             && in_array($application->status_id, [$handoffStatus?->id], true)
         ) {
             return true;

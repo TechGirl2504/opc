@@ -34,7 +34,7 @@ class ApplicationService
             return false;
         }
 
-        if ($user->hasPermissionTo('view all applications') || $this->isApproverUser($user)) {
+        if ($user->hasActivePermission('view all applications') || $this->isApproverUser($user)) {
             return true;
         }
 
@@ -48,7 +48,7 @@ class ApplicationService
 
     private function isApproverUser(User $user): bool
     {
-        return $user->hasRole('opc_approver');
+        return $user->hasActiveRole('opc_approver');
     }
 
     /**
@@ -65,7 +65,7 @@ class ApplicationService
         $isAssignedPolice = ($application->assigned_police_officer_id !== null) && ((int) $application->assigned_police_officer_id === (int) $user->id);
         $isAssignedNis = ($application->assigned_nis_officer_id !== null) && ((int) $application->assigned_nis_officer_id === (int) $user->id);
         $isAssignedApprover = ($application->assigned_opc_approver_id !== null) && ((int) $application->assigned_opc_approver_id === (int) $user->id);
-        $isAdmin = $user->hasRole('admin');
+        $isAdmin = $user->hasActiveRole('admin');
 
         $allowedActions = [];
 
@@ -85,52 +85,52 @@ class ApplicationService
             $allowedActions[] = 'delete_application';
         }
 
-        if ($user->hasPermissionTo('upload documents') && !in_array($statusCode, self::FINAL_STATUSES, true)) {
+        if ($user->hasActivePermission('upload documents') && !in_array($statusCode, self::FINAL_STATUSES, true)) {
             $allowedActions[] = 'upload_documents';
         }
 
-        if ($user->hasPermissionTo('view documents')) {
+        if ($user->hasActivePermission('view documents')) {
             $allowedActions[] = 'view_documents';
         }
 
-        if ($user->hasPermissionTo('download documents')) {
+        if ($user->hasActivePermission('download documents')) {
             $allowedActions[] = 'download_documents';
         }
 
-        if ($user->hasPermissionTo('delete documents') && !in_array($statusCode, self::FINAL_STATUSES, true)) {
+        if ($user->hasActivePermission('delete documents') && !in_array($statusCode, self::FINAL_STATUSES, true)) {
             $allowedActions[] = 'delete_documents';
         }
 
-        if ($user->hasPermissionTo('assign applications') && $this->canAssignPoliceWorkflow($application, $statusCode)) {
+        if ($user->hasActivePermission('assign applications') && $this->canAssignPoliceWorkflow($application, $statusCode)) {
             $allowedActions[] = 'assign_police_officer';
         }
 
-        if ($user->hasPermissionTo('assign applications') && $this->canAssignNisWorkflow($application, $statusCode)) {
+        if ($user->hasActivePermission('assign applications') && $this->canAssignNisWorkflow($application, $statusCode)) {
             $allowedActions[] = 'assign_nis_officer';
         }
 
-        if ($user->hasPermissionTo('conduct police vetting') && $isAssignedPolice && $this->canConductPoliceVettingWorkflow($application)) {
+        if ($user->hasActivePermission('conduct police vetting') && $isAssignedPolice && $this->canConductPoliceVettingWorkflow($application)) {
             $allowedActions[] = 'conduct_police_vetting';
         }
 
-        if ($user->hasPermissionTo('conduct nis vetting') && $isAssignedNis && $this->canConductNisVettingWorkflow($application)) {
+        if ($user->hasActivePermission('conduct nis vetting') && $isAssignedNis && $this->canConductNisVettingWorkflow($application)) {
             $allowedActions[] = 'conduct_nis_vetting';
         }
 
-        if ($isAdmin && $user->hasPermissionTo('send back vetting') && $this->canSendBackPoliceWorkflow($application)) {
+        if ($isAdmin && $user->hasActivePermission('send back vetting') && $this->canSendBackPoliceWorkflow($application)) {
             $allowedActions[] = 'send_back_police_vetting';
         }
 
-        if ($isAdmin && $user->hasPermissionTo('send back vetting') && $this->canSendBackNisWorkflow($application)) {
+        if ($isAdmin && $user->hasActivePermission('send back vetting') && $this->canSendBackNisWorkflow($application)) {
             $allowedActions[] = 'send_back_nis_vetting';
         }
 
-        if ($isAdmin && $user->hasPermissionTo('approve applications') && $this->canForwardToApprovalWorkflow($application)) {
+        if ($isAdmin && $user->hasActivePermission('approve applications') && $this->canForwardToApprovalWorkflow($application)) {
             $allowedActions[] = 'forward_to_approval';
         }
 
         if (
-            $user->hasPermissionTo('create applications')
+            $user->hasActivePermission('create applications')
             && $isCreator
             && in_array($statusCode, ['draft', 'returned_to_data_entry'], true)
         ) {
@@ -147,7 +147,7 @@ class ApplicationService
         }
 
         if (
-            ($user->hasRole('admin') || $user->hasPermissionTo('manage application statuses'))
+            ($user->hasActiveRole('admin') || $user->hasActivePermission('manage application statuses'))
             && $statusCode === 'handoff_to_admin'
             && !$application->assigned_police_officer_id
             && !$application->assigned_nis_officer_id
@@ -183,7 +183,7 @@ class ApplicationService
         }
 
         if (in_array($statusCode, self::CREATOR_EDITABLE_STATUSES, true)) {
-            return $isCreator && $user->hasPermissionTo('create applications');
+            return $isCreator && $user->hasActivePermission('create applications');
         }
 
         if ($isAdminReviewAfterApproverReturn) {
@@ -215,7 +215,7 @@ class ApplicationService
             return false;
         }
 
-        return $user->hasPermissionTo('delete applications') && ($isCreator || $isAdmin);
+        return $user->hasActivePermission('delete applications') && ($isCreator || $isAdmin);
     }
 
     private function canAssignPoliceWorkflow(Application $application, string $statusCode): bool
@@ -306,7 +306,7 @@ class ApplicationService
         ]);
 
         // Permission-based scoping if user is provided
-        if ($user && !$user->hasPermissionTo('view all applications') && !$this->isApproverUser($user)) {
+        if ($user && !$user->hasActivePermission('view all applications') && !$this->isApproverUser($user)) {
             $query->where(function ($q) use ($user) {
                 $q->where('created_by', $user->id)
                     ->orWhere('assigned_police_officer_id', $user->id)
@@ -518,7 +518,7 @@ class ApplicationService
                 throw new \Exception('Application cannot be handed off to admin from the current status');
             }
 
-            if ($application->created_by !== null && (int) $application->created_by !== (int) $user->id && !$user->hasRole('admin')) {
+            if ($application->created_by !== null && (int) $application->created_by !== (int) $user->id && !$user->hasActiveRole('admin')) {
                 throw new \Exception('Only the creator or an admin can hand off this application');
             }
 

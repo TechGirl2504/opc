@@ -48,7 +48,7 @@ class ReportController extends Controller
             // Permission-based scoping:
             // - Users with "view all applications" can see all
             // - Otherwise scope to records they created or are assigned to
-            if (!$user->hasPermissionTo('view all applications')) {
+            if (!$user->hasActivePermission('view all applications')) {
                 $query->where(function ($q) use ($user) {
                     $q->where('created_by', $user->id)
                       ->orWhere('assigned_police_officer_id', $user->id)
@@ -127,7 +127,7 @@ class ReportController extends Controller
                 ->join('application_statuses', 'applications.status_id', '=', 'application_statuses.id');
             
             // Apply same permission-based scoping
-            if (!$user->hasPermissionTo('view all applications')) {
+            if (!$user->hasActivePermission('view all applications')) {
                 $statusBreakdownQuery->where(function ($q) use ($user) {
                     $q->where('applications.created_by', $user->id)
                       ->orWhere('applications.assigned_police_officer_id', $user->id)
@@ -234,7 +234,7 @@ class ReportController extends Controller
             $query = Application::with(['status', 'createdBy', 'createdBy.institution']);
 
             // Permission-based scoping (same logic as dashboard)
-            if (!$user->hasPermissionTo('view all applications')) {
+            if (!$user->hasActivePermission('view all applications')) {
                 $query->where(function ($q) use ($user) {
                     $q->where('created_by', $user->id)
                         ->orWhere('assigned_police_officer_id', $user->id)
@@ -342,7 +342,7 @@ class ReportController extends Controller
             $query = VettingRecord::with(['vettingType', 'status', 'application', 'conductedBy', 'recommendation']);
 
             // Permission-based scoping
-            if (!$user->hasPermissionTo('view all applications')) {
+            if (!$user->hasActivePermission('view all applications')) {
                 $query->whereHas('application', function ($q) use ($user) {
                     $q->where('created_by', $user->id)
                         ->orWhere('assigned_police_officer_id', $user->id)

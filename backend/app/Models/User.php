@@ -122,4 +122,58 @@ class User extends Authenticatable
     {
         return $this->roles->first()?->name;
     }
+
+    /**
+     * Return the role currently selected for this session.
+     */
+    public function activeRoleName(): ?string
+    {
+        if (!app()->bound('request') || !request()->hasSession()) {
+            return null;
+        }
+
+        return request()->session()->get('active_role');
+    }
+
+    /**
+     * Check whether this user is currently working under a role.
+     * With no selected role, retain the existing all-assigned-roles behavior
+     * for backwards compatibility and non-session contexts such as jobs.
+     */
+    public function hasActiveRole(string $role): bool
+    {
+        return $this->activeRoleName()
+            ? $this->activeRoleName() === $role && $this->hasRole($role)
+            : $this->hasRole($role);
+    }
+
+    /**
+     * Check a permission against the selected role, when one is active.
+     */
+    public function hasActivePermission($permission, ?string $guardName = null): bool
+    {
+        $activeRole = $this->activeRoleName();
+
+        if (!$activeRole) {
+            return $this->hasPermissionTo($permission, $guardName);
+        }
+
+        $role = $this->roles()->where('name', $activeRole)->first();
+
+        return $role?->hasPermissionTo($permission, $guardName) ?? false;
+    }
+
+    /**
+     * Check whether the selected role grants at least one permission.
+     */
+    public function hasAnyActivePermission(array $permissions, ?string $guardName = null): bool
+    {
+        foreach ($permissions as $permission) {
+            if ($this->hasActivePermission($permission, $guardName)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

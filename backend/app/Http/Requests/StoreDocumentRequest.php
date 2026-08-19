@@ -21,7 +21,7 @@ class StoreDocumentRequest extends FormRequest
             return false;
         }
 
-        if (!$this->user()?->hasPermissionTo('upload documents')) {
+        if (!$this->user()?->hasActivePermission('upload documents')) {
             return false;
         }
 

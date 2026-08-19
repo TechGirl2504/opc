@@ -89,6 +89,16 @@
 
       <v-spacer />
 
+      <v-btn
+        v-if="(authStore.user?.roles?.length ?? 0) > 1"
+        variant="tonal"
+        class="mr-2"
+        prepend-icon="mdi-account-switch"
+        @click="authStore.goToRoleSelection()"
+      >
+        {{ authStore.userRole || 'Select role' }}
+      </v-btn>
+
       <PwaInstallButton />
       <Notifications />
 

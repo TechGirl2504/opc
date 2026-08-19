@@ -26,10 +26,11 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:password-reset');
 
     // Protected routes
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'active.role'])->group(function () {
 
         // Authentication routes
         Route::get('/auth/user', [AuthController::class, 'user']);
+        Route::post('/auth/active-role', [AuthController::class, 'selectActiveRole']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/auth/refresh', [AuthController::class, 'refresh']);
         Route::post('/auth/update-password', [AuthController::class, 'updatePassword']);

@@ -38,7 +38,7 @@ class CheckPermission
             return $next($request);
         }
 
-        if (!$request->user()->hasAnyPermission($normalized)) {
+        if (!$request->user()->hasAnyActivePermission($normalized)) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -51,5 +51,4 @@ class CheckPermission
         return $next($request);
     }
 }
-
 

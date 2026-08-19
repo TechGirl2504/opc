@@ -98,10 +98,13 @@
               :rules="[rules.required]"
             ></v-select>
             <v-select
-              v-model="form.role"
+              v-model="form.roles"
               :items="availableRoles"
-              label="Role"
-              :rules="[rules.required]"
+              label="Roles"
+              multiple
+              chips
+              closable-chips
+              :rules="[rules.rolesRequired]"
             ></v-select>
             <v-switch
               v-if="editingUser"
@@ -147,7 +150,7 @@ const form = reactive<CreateUserRequest & { is_active?: boolean }>({
   password: '',
   password_confirmation: '',
   institution_id: 0,
-  role: '',
+  roles: [],
   is_active: true
 })
 
@@ -162,6 +165,7 @@ const headers = [
 
 const rules = {
   required: (v: any) => !!v || 'This field is required',
+  rolesRequired: (v: string[]) => (Array.isArray(v) && v.length > 0) || 'Select at least one role',
   email: (v: string) => /.+@.+\..+/.test(v) || 'Email must be valid',
   emailOptional: (v: string) => !v || /.+@.+\..+/.test(v) || 'Email must be valid',
   minLength: (v: string) => v.length >= 8 || 'Password must be at least 8 characters',
@@ -170,23 +174,18 @@ const rules = {
   passwordMatch: (v: string) => v === form.password || 'Passwords must match'
 }
 
-function getPrimaryRole(user: User): string {
+function getUserRoles(user: User): string[] {
   if (Array.isArray(user.roles) && user.roles.length > 0) {
-    const firstRole = user.roles[0] as unknown
-    if (typeof firstRole === 'string') {
-      return firstRole
-    }
-
-    if (firstRole && typeof firstRole === 'object' && 'name' in firstRole) {
-      return String((firstRole as { name?: string }).name || '')
-    }
+    return user.roles
+      .map((role: unknown) => typeof role === 'string' ? role : (role as { name?: string })?.name || '')
+      .filter(Boolean)
   }
 
   if (typeof user.role === 'string') {
-    return user.role
+    return [user.role]
   }
 
-  return ''
+  return []
 }
 
 async function loadUsers() {
@@ -244,7 +243,7 @@ function openEditDialog(user: User) {
   form.username = user.username
   form.email = user.email
   form.institution_id = user.institution_id || 0
-  form.role = getPrimaryRole(user)
+  form.roles = getUserRoles(user)
   form.is_active = user.is_active
   form.password = ''
   form.password_confirmation = ''
@@ -257,7 +256,7 @@ function resetForm() {
   form.password = ''
   form.password_confirmation = ''
   form.institution_id = 0
-  form.role = ''
+  form.roles = []
   form.is_active = true
 }
 
@@ -282,8 +281,8 @@ async function handleSubmit() {
       if (form.institution_id > 0) {
         updateData.institution_id = form.institution_id
       }
-      if (form.role) {
-        updateData.role = form.role
+      if (form.roles.length > 0) {
+        updateData.roles = form.roles
       }
       if (form.password) {
         updateData.password = form.password
@@ -302,7 +301,7 @@ async function handleSubmit() {
         password: form.password,
         password_confirmation: form.password,
         institution_id: form.institution_id,
-        role: form.role
+        roles: form.roles
       }
       const response = await usersApi.create(createData)
       if (response.data.success) {

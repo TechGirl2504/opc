@@ -12,7 +12,7 @@ class ApproveApplicationRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->hasRole('opc_approver') ?? false;
+        return $this->user()?->hasActiveRole('opc_approver') ?? false;
     }
 
     /**

@@ -13,7 +13,7 @@ class StoreApplicationRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->hasPermissionTo('create applications') ?? false;
+        return $this->user()?->hasActivePermission('create applications') ?? false;
     }
 
     /**

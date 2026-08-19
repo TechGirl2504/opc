@@ -37,7 +37,11 @@ class CheckRole
             ->all();
 
         // Use Spatie Permission to check roles
-        if (!$request->user()->hasAnyRole($normalizedRoles)) {
+        $hasRole = collect($normalizedRoles)->contains(
+            fn (string $role) => $request->user()->hasActiveRole($role)
+        );
+
+        if (!$hasRole) {
             return response()->json([
                 'success' => false,
                 'error' => [

@@ -16,11 +16,15 @@ return Application::configure(basePath: dirname(__DIR__))
         // Ensure CORS headers are added to API responses (including errors like 401/403)
         $middleware->prepend(HandleCors::class);
         $middleware->statefulApi();
+        // Active-role selection is stored in the authenticated browser
+        // session and must survive requests to the API.
+        $middleware->appendToGroup('api', \Illuminate\Session\Middleware\StartSession::class);
 
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
             'permission' => \App\Http\Middleware\CheckPermission::class,
             'institution' => \App\Http\Middleware\CheckInstitution::class,
+            'active.role' => \App\Http\Middleware\RequireActiveRole::class,
         ]);
 
         // Rate limiting: 60 requests per minute per user
